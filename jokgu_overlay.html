@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="ko" class="app-ready is-overlay-only" style="--left-col-w: 398px;"><head><script>window.__FORCE_OVERLAY_ONLY__ = true;
 window.__INITIAL_OVERLAY_ROOM__ = "jokgu-live";
-window.__INITIAL_OVERLAY_PAYLOAD__ = {"senderId":"inst-d57525j0","updatedAt":1795262109497,"roomCode":"jokgu-live","tournament":"제13회 안양시의회 의장기 족구대회","date":"2026. 11. 7","venue":"장소 : 안양 새물공원 15점 3세트 (듀스없음)","sets":[{"top":0,"bottom":0}],"activeSet":0,"serveTeam":"top","overlayVisible":true,"overlayScale":150,"topTeam":{"name":"안양 밤꽃","direction":"up","color":"#C93725"},"bottomTeam":{"name":"F2A-효준","direction":"down","color":"#3851B5"},"loadedTopTeamId":"team-anyang-bamkkot","loadedBottomTeamId":"team-f2a-hyojun","topRosterPlayers":[{"id":"p-101","name":"김민수","position":"공격수","note":"NO.7"},{"id":"p-102","name":"박지훈","position":"세터","note":"NO.10"},{"id":"p-103","name":"이성호","position":"우수비","note":"NO.3"},{"id":"p-104","name":"정현우","position":"좌수비","note":"NO.5"},{"id":"p-105","name":"최강산","position":"후보선수","note":"NO.11"}],"bottomRosterPlayers":[{"id":"p-201","name":"강태풍","position":"공격수","note":"NO.9"},{"id":"p-202","name":"윤도현","position":"세터","note":"NO.1"},{"id":"p-203","name":"송준영","position":"우수비","note":"NO.4"},{"id":"p-204","name":"한승민","position":"좌수비","note":"NO.8"}],"playerBanner":{"visible":false,"fadingOut":false,"mode":"single","slot":"top","sequenceStep":0,"teamName":"안양 밤꽃","playerName":"김민수","position":"공격수","note":"NO.7","playerId":"","teamId":"team-anyang-bamkkot","animKey":0},"eventBanner":{"visible":false,"fadingOut":false,"eventId":"","animKey":0}};
+window.__INITIAL_OVERLAY_PAYLOAD__ = {"senderId":"inst-h2jagf65","updatedAt":1795263454860,"roomCode":"jokgu-live","tournament":"제13회 안양시의회 의장기 족구대회","date":"2026. 11. 7","venue":"장소 : 안양 새물공원 15점 3세트 (듀스없음)","sets":[{"top":0,"bottom":0}],"activeSet":0,"serveTeam":"top","overlayVisible":true,"overlayScale":150,"topTeam":{"name":"안양 밤꽃","direction":"up","color":"#C93725"},"bottomTeam":{"name":"F2A-효준","direction":"down","color":"#3851B5"},"loadedTopTeamId":"team-anyang-bamkkot","loadedBottomTeamId":"team-f2a-hyojun","topRosterPlayers":[{"id":"p-101","name":"김민수","position":"공격수","note":"NO.7"},{"id":"p-102","name":"박지훈","position":"세터","note":"NO.10"},{"id":"p-103","name":"이성호","position":"우수비","note":"NO.3"},{"id":"p-104","name":"정현우","position":"좌수비","note":"NO.5"},{"id":"p-105","name":"최강산","position":"후보선수","note":"NO.11"}],"bottomRosterPlayers":[{"id":"p-201","name":"강태풍","position":"공격수","note":"NO.9"},{"id":"p-202","name":"윤도현","position":"세터","note":"NO.1"},{"id":"p-203","name":"송준영","position":"우수비","note":"NO.4"},{"id":"p-204","name":"한승민","position":"좌수비","note":"NO.8"}],"playerBanner":{"visible":false,"fadingOut":false,"mode":"single","slot":"top","sequenceStep":0,"teamName":"안양 밤꽃","playerName":"김민수","position":"공격수","note":"NO.7","playerId":"","teamId":"team-anyang-bamkkot","animKey":0},"eventBanner":{"visible":false,"fadingOut":false,"eventId":"","animKey":0}};
 window.__app_id = "jokgu-scoreboard-app";</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>유튜브 방송용 족구 스코어보드 (컨트롤러 &amp; 실시간 연동 OBS 오버레이)</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 모바일 데이터(LTE/5G) 및 핸드폰 테더링 환경 실시간 연동을 위한 MQTT WebSocket 로드 -->
+    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
     <!-- 기기 간 실시간 카메라 앱 연동을 위한 WebRTC P2P(PeerJS) 로드 -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <!-- 방송용 고가독성 한글/영문 폰트 (Pretendard, Noto Sans KR, Roboto) -->
@@ -410,7 +412,7 @@ window.__app_id = "jokgu-scoreboard-app";</script>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-1.5 bg-slate-800/95 border border-slate-700 rounded-lg px-2 py-1">
-                    <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="실시간 원격 송출 대기 중 (방코드: jokgu-live)"></span>
+                    <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="모바일 테더링/LTE 실시간 클라우드 연결됨 (방코드: jokgu-live)"></span>
                     <span class="text-[11px] font-bold text-slate-400">방코드</span>
                     <input type="text" id="input-room-code" value="jokgu-live" onchange="updateRoomCode(this.value)" class="w-20 sm:w-24 bg-slate-900 border border-slate-600 rounded px-1.5 py-0.5 text-[11px] font-black text-sky-300 focus:outline-none focus:border-sky-400">
                     <button type="button" onclick="openOverlayWindow()" title="별도 순수 오버레이 창 열기" class="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-[11px] font-extrabold transition-all">
@@ -1328,6 +1330,94 @@ window.__app_id = "jokgu-scoreboard-app";</script>
 
         const liveChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('jokgu_scoreboard_sync') : null;
 
+        // 모바일 테더링 / LTE / 5G 환경(NAT 방화벽 무관) 실시간 연동을 위한 MQTT WebSocket 브로커 매니저
+        const mqttSync = {
+            client: null,
+            connected: false,
+            subscribedTopic: '',
+            getTopic(room) {
+                const safe = (room || 'jokgu-live').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'jokgu-live';
+                return `jokgu/live/scoreboard/v1/${safe}`;
+            },
+            init() {
+                if (typeof mqtt === 'undefined') return;
+                this.destroy();
+                const topic = this.getTopic(state.roomCode);
+                this.subscribedTopic = topic;
+
+                try {
+                    this.client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+                        clientId: `jokgu_${IS_OVERLAY_ONLY ? 'ovl' : 'ctrl'}_${Math.random().toString(36).slice(2, 10)}`,
+                        clean: true,
+                        connectTimeout: 5000,
+                        reconnectPeriod: 2500
+                    });
+
+                    this.client.on('connect', () => {
+                        this.connected = true;
+                        const dotEl = document.getElementById('sync-status-dot');
+                        if (dotEl) {
+                            dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                            dotEl.title = `모바일 테더링/LTE 실시간 클라우드 연결됨 (방코드: ${state.roomCode})`;
+                        }
+
+                        this.client.subscribe(topic, { qos: 0 }, () => {
+                            if (IS_OVERLAY_ONLY) {
+                                // 오버레이 앱이 접속하자마자 컨트롤러에 최신 상태 요청
+                                this.client.publish(topic, JSON.stringify({
+                                    type: 'REQUEST_SYNC',
+                                    senderId: INSTANCE_SENDER_ID,
+                                    roomCode: state.roomCode
+                                }));
+                            } else {
+                                // 컨트롤러 접속 시 기존에 retained 메시지가 없는 경우에만 초기 상태 송출 (다른 컨트롤러의 최신 상태 덮어쓰기 방지)
+                                setTimeout(() => {
+                                    if (lastAppliedTimestamp === 0) {
+                                        this.broadcast(buildLiveSyncPayload());
+                                    }
+                                }, 800);
+                            }
+                        });
+                    });
+
+                    this.client.on('message', (recvTopic, messageBuf) => {
+                        if (recvTopic !== this.subscribedTopic) return;
+                        try {
+                            const data = JSON.parse(messageBuf.toString());
+                            if (!data || data.senderId === INSTANCE_SENDER_ID) return;
+
+                            if (data.type === 'REQUEST_SYNC') {
+                                if (!IS_OVERLAY_ONLY && lastAppliedTimestamp > 0) {
+                                    this.broadcast(buildLiveSyncPayload());
+                                }
+                                return;
+                            }
+
+                            applyIncomingLivePayload(data);
+                        } catch (e) {}
+                    });
+
+                    this.client.on('close', () => {
+                        this.connected = false;
+                    });
+                } catch (e) {}
+            },
+            destroy() {
+                this.connected = false;
+                if (this.client) {
+                    try { this.client.end(true); } catch (e) {}
+                    this.client = null;
+                }
+            },
+            broadcast(payload) {
+                if (IS_OVERLAY_ONLY || !this.client || !this.connected) return;
+                const topic = this.getTopic(state.roomCode);
+                try {
+                    this.client.publish(topic, JSON.stringify(payload), { qos: 0, retain: true });
+                } catch (e) {}
+            }
+        };
+
         // 기기 간(스마트폰 카메라 앱 <-> 컨트롤러) 무설정 실시간 WebRTC P2P 동기화 매니저
         const p2pSync = {
             peer: null,
@@ -1382,17 +1472,49 @@ window.__app_id = "jokgu-scoreboard-app";</script>
                             try { conn.send(buildLiveSyncPayload()); } catch (e) {}
                         });
                         conn.on('data', (msg) => {
-                            if (msg && msg.type === 'REQUEST_SYNC') {
+                            if (!msg) return;
+                            if (msg.type === 'REQUEST_SYNC') {
                                 try { conn.send(buildLiveSyncPayload()); } catch (e) {}
+                            } else if (msg.roomCode) {
+                                // 보조 컨트롤러에서 보낸 변경 사항 수신 후 전체 연결 기기에 중계
+                                applyIncomingLivePayload(msg);
+                                this.broadcast(msg);
                             }
                         });
                         conn.on('close', () => this.connections.delete(conn.peer));
                         conn.on('error', () => this.connections.delete(conn.peer));
                     });
                     this.peer.on('error', (err) => {
+                        // 이미 다른 컨트롤러(컴퓨터 또는 핸드폰)가 호스트를 선점한 경우 보조 컨트롤러로 자동 연결
                         if (err && err.type === 'unavailable-id') {
-                            this.peer = new Peer(undefined, { debug: 0 });
+                            this.connectAsSecondaryController();
                         }
+                    });
+                } catch (e) {}
+            },
+            connectAsSecondaryController() {
+                const hostId = this.getHostPeerId(state.roomCode);
+                try {
+                    this.peer = new Peer(undefined, { debug: 0 });
+                    this.peer.on('open', () => {
+                        const conn = this.peer.connect(hostId, { reliable: true });
+                        this.hostConn = conn;
+                        conn.on('open', () => {
+                            try { conn.send({ type: 'REQUEST_SYNC' }); } catch (e) {}
+                        });
+                        conn.on('data', (payload) => {
+                            if (payload && payload.roomCode) {
+                                applyIncomingLivePayload(payload);
+                            }
+                        });
+                        conn.on('close', () => {
+                            this.hostConn = null;
+                            setTimeout(() => this.init(), 2500);
+                        });
+                        conn.on('error', () => {
+                            this.hostConn = null;
+                            setTimeout(() => this.init(), 2500);
+                        });
                     });
                 } catch (e) {}
             },
@@ -1427,7 +1549,11 @@ window.__app_id = "jokgu-scoreboard-app";</script>
                 }, 3000);
             },
             broadcast(payload) {
-                if (IS_OVERLAY_ONLY || this.connections.size === 0) return;
+                if (IS_OVERLAY_ONLY) return;
+                if (this.hostConn && this.hostConn.open) {
+                    try { this.hostConn.send(payload); } catch (e) {}
+                }
+                if (this.connections.size === 0) return;
                 this.connections.forEach((conn) => {
                     if (conn && conn.open) {
                         try { conn.send(payload); } catch (e) {}
@@ -1817,6 +1943,8 @@ window.__app_id = "jokgu-scoreboard-app";</script>
 
             if (!IS_OVERLAY_ONLY) {
                 syncInputsWithState();
+                renderRosterSection();
+                renderEventButtonsGrid();
             }
             render();
             syncOverlayVisibility();
@@ -1841,6 +1969,7 @@ window.__app_id = "jokgu-scoreboard-app";</script>
                 window.__jokguCloudSync.pushRoomState(state.roomCode, payload);
             }
 
+            mqttSync.broadcast(payload);
             p2pSync.broadcast(payload);
         }
 
@@ -1879,6 +2008,7 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             if (window.__jokguCloudSync && window.__jokguCloudSync.enabled) {
                 window.__jokguCloudSync.subscribeRoom(state.roomCode, applyIncomingLivePayload);
             }
+            mqttSync.init();
             p2pSync.init();
             persistLocalState();
             showToast(`📡 연동 방 코드가 '${cleaned}'(으)로 설정되었습니다.`);
@@ -3592,10 +3722,10 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             render();
             if (!IS_OVERLAY_ONLY) {
                 syncViewModes();
-                broadcastLiveOverlayState();
             } else {
                 syncOverlayVisibility();
             }
+            mqttSync.init();
             p2pSync.init();
             initCloudConnection();
 
