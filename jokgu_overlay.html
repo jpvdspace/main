@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" style="--left-col-w: 391px;">
+<html lang="ko" style="--left-col-w: 391px; background: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +22,7 @@
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- 방송용 고가독성 한글/영문 폰트 (Pretendard, Noto Sans KR, Roboto) -->
+    <!-- 방송용 고가독성 한글/영문 폰트 -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,13 +31,13 @@
     <style>
         :root {
             --left-col-w: 391px;
-            color-scheme: normal;
         }
 
-        /* 모든 루트 및 래퍼 요소 배경 강제 완전 투명 처리 */
-        html, body, #top-fixed-section, #preview-wrapper, #scoreboard-scale-box {
-            background: transparent !important;
-            background-color: rgba(0, 0, 0, 0) !important;
+        /* [핵심 수정] 브라우저 캔버스 불투명화 방지 및 모든 래퍼 배경 완전 투명 강제 */
+        html, body, header, #top-fixed-section, #preview-wrapper, #scoreboard-scale-box {
+            background: none transparent !important;
+            background-color: transparent !important;
+            background-image: none !important;
         }
 
         html, body {
@@ -55,6 +55,7 @@
             display: flex;
             flex-direction: column;
             align-items: flex-start;
+            pointer-events: none;
         }
 
         #preview-wrapper {
@@ -64,6 +65,7 @@
             align-items: flex-start;
             justify-content: flex-start;
             overflow: visible;
+            pointer-events: none;
         }
 
         .font-score {
@@ -71,7 +73,7 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* 방송 그래픽 스코어보드 카드 스타일 (1~4단 우측 끝단 1px 오차 없이 완벽 수직 정렬) */
+        /* 방송 그래픽 스코어보드 카드 스타일 */
         .tv-scoreboard-card,
         .scoreboard-box {
             display: inline-flex;
@@ -151,6 +153,7 @@
             position: fixed;
             left: 24px;
             bottom: 24px;
+            background: transparent !important;
         }
 
         .lower-third-wrapper.banner-on {
@@ -207,10 +210,10 @@
         }
     </style>
 </head>
-<body class="overlay-only-mode page-obs-transparent text-slate-900">
+<body style="background: transparent !important;" class="overlay-only-mode page-obs-transparent text-slate-900">
 
-    <!-- 순수 방송 오버레이 출력 영역 -->
-    <header id="top-fixed-section">
+    <!-- 순수 방송 오버레이 출력 영역 (header 대신 투명 div 사용) -->
+    <div id="top-fixed-section">
         <div id="preview-wrapper">
             
             <!-- 상단 스코어보드 그래픽 본체 -->
@@ -263,7 +266,7 @@
             <div id="player-banner-wrapper" class="lower-third-wrapper banner-off-live select-none shrink-0"></div>
 
         </div>
-    </header>
+    </div>
 
     <!-- Firebase 실시간 클라우드 동기화 모듈 -->
     <script type="module">
@@ -364,7 +367,6 @@
             return JSON.parse(JSON.stringify(DEFAULT_SAVED_TEAMS));
         }
 
-        // 초기 상태 (최초 로드 시 화면 확인이 가능하도록 overlayVisible: true 기본 적용, 컨트롤러 수신 시 즉시 동기화)
         const state = {
             roomCode: INITIAL_ROOM_CODE,
             tournament: "제13회 안양시의회 의장기 족구대회",
@@ -651,7 +653,6 @@
             const cardEl = document.getElementById('scoreboard-card');
             const bannerEl = document.getElementById('player-banner-wrapper');
 
-            // 1. 상단 스코어보드 표시 여부
             cardEl.classList.remove('overlay-on', 'overlay-off-live');
             if (state.overlayVisible) {
                 cardEl.classList.add('overlay-on');
@@ -659,7 +660,6 @@
                 cardEl.classList.add('overlay-off-live');
             }
 
-            // 2. 하단 배너 렌더링
             const pb = state.playerBanner;
             if (pb.mode === 'sequence') {
                 const activeSlot = pb.sequenceStep === 1 ? 'bottom' : 'top';
@@ -695,7 +695,6 @@
                 `;
             }
 
-            // 3. 하단 배너 자동 스케일 피팅 및 표시 여부
             bannerEl.classList.remove('banner-on', 'banner-off-live');
             const renderedCard = bannerEl.querySelector('.lower-third-bar');
             const naturalBannerWidth = renderedCard ? renderedCard.offsetWidth : 0;
