@@ -19,13 +19,15 @@
             --left-col-w: 290px;
         }
 
-        /* 초기 시작 시 깜박임(FOUC) 방지 (JS 초기화 완료 후 .app-ready 부여) */
-        body {
-            opacity: 0;
+        /* 3. 초기 시작 시 깜박임(FOUC) 완전 차단 (JS 초기화 + 웹폰트 준비 완료 후 .app-ready 부여) */
+        html:not(.app-ready) body {
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
-        body.app-ready {
+        html.app-ready body {
             opacity: 1;
-            transition: opacity 0.2s ease-out, background-color 0.25s ease;
+            visibility: visible;
+            transition: opacity 0.18s ease-out, background-color 0.25s ease;
         }
 
         /* 100dvh 전체 화면 고정 분할: 상단 미리보기 고정, 하단 조작창만 독립 스크롤 */
@@ -387,8 +389,8 @@
 
                 <div class="flex items-center gap-2 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
                     <span class="text-[11px] font-bold text-slate-400">배율</span>
-                    <input type="range" id="scale-slider" min="50" max="130" value="50" oninput="updateScale(this.value)" class="w-20 sm:w-28 accent-blue-500 cursor-pointer">
-                    <span id="scale-value-label" class="text-xs font-extrabold text-blue-300 w-9 text-right">50%</span>
+                    <input type="range" id="scale-slider" min="50" max="180" value="150" oninput="updateScale(this.value)" class="w-20 sm:w-28 accent-blue-500 cursor-pointer">
+                    <span id="scale-value-label" class="text-xs font-extrabold text-blue-300 w-10 text-right">150%</span>
                 </div>
             </div>
 
@@ -1219,7 +1221,8 @@
                 : [{ top: 0, bottom: 0 }],
             activeSet: typeof savedBoard?.activeSet === 'number' ? savedBoard.activeSet : 0,
             serveTeam: savedBoard?.serveTeam === 'bottom' ? 'bottom' : 'top',
-            scale: typeof savedBoard?.scale === 'number' ? savedBoard.scale : 50,
+            scale: typeof savedBoard?.scale === 'number' ? savedBoard.scale : 150,
+            overlayScale: typeof savedBoard?.overlayScale === 'number' ? savedBoard.overlayScale : 150,
             overlayVisible: IS_OVERLAY_ONLY
                 ? (urlParams.get('show') !== '0')
                 : (typeof savedBoard?.overlayVisible === 'boolean' ? savedBoard.overlayVisible : false),
@@ -1344,6 +1347,7 @@
                 activeSet: state.activeSet,
                 serveTeam: state.serveTeam,
                 overlayVisible: state.overlayVisible,
+                overlayScale: state.overlayScale,
                 topTeam: { name: state.topTeam.name, direction: 'up', color: COLOR_RED },
                 bottomTeam: { name: state.bottomTeam.name, direction: 'down', color: COLOR_BLUE },
                 loadedTopTeamId: state.loadedTopTeamId,
@@ -1368,6 +1372,7 @@
             if (typeof payload.activeSet === 'number') state.activeSet = payload.activeSet;
             if (payload.serveTeam) state.serveTeam = payload.serveTeam;
             if (typeof payload.overlayVisible === 'boolean') state.overlayVisible = payload.overlayVisible;
+            if (typeof payload.overlayScale === 'number') state.overlayScale = payload.overlayScale;
             if (payload.topTeam) state.topTeam = { name: payload.topTeam.name, direction: 'up', color: COLOR_RED };
             if (payload.bottomTeam) state.bottomTeam = { name: payload.bottomTeam.name, direction: 'down', color: COLOR_BLUE };
             if (payload.loadedTopTeamId) state.loadedTopTeamId = payload.loadedTopTeamId;
@@ -1428,6 +1433,7 @@
                     activeSet: state.activeSet,
                     serveTeam: state.serveTeam,
                     scale: state.scale,
+                    overlayScale: state.overlayScale,
                     overlayVisible: state.overlayVisible,
                     topTeam: state.topTeam,
                     bottomTeam: state.bottomTeam,
@@ -1500,8 +1506,9 @@
 
             const bodyEl = docClone.querySelector('body');
             if (bodyEl) {
-                bodyEl.className = 'overlay-only-mode page-obs-transparent text-slate-900 app-ready';
+                bodyEl.className = 'overlay-only-mode page-obs-transparent text-slate-900';
             }
+            docClone.classList.add('app-ready');
 
             const htmlContent = '<!DOCTYPE html>\n' + docClone.outerHTML;
             const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -2453,7 +2460,7 @@
                 broadcastLiveOverlayState();
             }
         }
-
+        // 2. 선수명단 출력 시 장소 폰트 크기(18px)로 확대하여 시인성 강화
         function buildTeamLineupBarHTML(slot, isFadingOut = false) {
             const isBottom = (slot === 'bottom');
             const teamId = isBottom ? state.loadedBottomTeamId : state.loadedTopTeamId;
@@ -2465,10 +2472,10 @@
             const players = (teamObj && teamObj.players) ? teamObj.players : [];
 
             const renderBadge = (p) => `
-                <div class="inline-flex items-center gap-1 bg-white border border-slate-300/90 rounded-md px-2 py-0.5 shadow-2xs whitespace-nowrap shrink-0">
-                    <span class="text-[11px] font-extrabold text-[#0F2350] leading-none">${p.position}</span>
-                    <span class="text-[15.5px] font-black text-[#111111] leading-none">${p.name}</span>
-                    ${p.note ? `<span class="text-[10.5px] font-bold text-slate-500 leading-none">${p.note}</span>` : ''}
+                <div class="inline-flex items-center gap-1.5 bg-white border border-slate-300/90 rounded-md px-2.5 py-1 shadow-2xs whitespace-nowrap shrink-0">
+                    <span class="text-[14px] font-extrabold text-[#0F2350] leading-none">${p.position}</span>
+                    <span class="text-[18px] font-black text-[#111111] leading-none">${p.name}</span>
+                    ${p.note ? `<span class="text-[13px] font-bold text-slate-500 leading-none">${p.note}</span>` : ''}
                 </div>
             `;
 
@@ -2476,7 +2483,7 @@
             let playersContentHTML = '';
 
             if (players.length === 0) {
-                playersContentHTML = `<span class="text-xs font-bold text-slate-500 whitespace-nowrap">등록된 선수가 없습니다</span>`;
+                playersContentHTML = `<span class="text-[15px] font-bold text-slate-500 whitespace-nowrap">등록된 선수가 없습니다</span>`;
             } else if (!isTwoRows) {
                 playersContentHTML = `
                     <div class="lineup-row-single">
@@ -2499,19 +2506,19 @@
                 `;
             }
 
-            const barMinHeightClass = isTwoRows ? 'min-h-[64px]' : 'h-[44px]';
-            const playersPaddingClass = isTwoRows ? 'py-1.5 px-3' : 'px-3';
+            const barMinHeightClass = isTwoRows ? 'min-h-[76px]' : 'h-[50px]';
+            const playersPaddingClass = isTwoRows ? 'py-2 px-3.5' : 'px-3.5';
             const animClass = isFadingOut ? 'anim-fade-out' : 'anim-push-in';
 
             return `
                 <div class="lower-third-bar ${animClass} ${barMinHeightClass}">
                     <div style="background-color: ${teamColor};" class="w-[8px] shrink-0 self-stretch"></div>
-                    <div class="bg-[#FFFFFF] text-[#111111] px-3.5 flex items-center gap-2 shrink-0 self-stretch">
-                        <div class="shrink-0 w-[26px] h-[18px] flex items-center justify-center">${arrowSVG}</div>
-                        <span class="text-[18px] font-extrabold tracking-tight whitespace-nowrap leading-none">${teamName}</span>
+                    <div class="bg-[#FFFFFF] text-[#111111] px-4 flex items-center gap-2 shrink-0 self-stretch">
+                        <div class="shrink-0 w-[28px] h-[20px] flex items-center justify-center">${arrowSVG}</div>
+                        <span class="text-[20px] font-extrabold tracking-tight whitespace-nowrap leading-none">${teamName}</span>
                     </div>
-                    <div class="bg-[#1E293B] text-amber-300 px-2.5 flex items-center shrink-0 self-stretch">
-                        <span class="text-[12.5px] font-extrabold tracking-tight whitespace-nowrap leading-none">출전 명단</span>
+                    <div class="bg-[#1E293B] text-amber-300 px-3 flex items-center shrink-0 self-stretch">
+                        <span class="text-[15px] font-extrabold tracking-tight whitespace-nowrap leading-none">출전 명단</span>
                     </div>
                     <div class="bg-[#F8FAFC] ${playersPaddingClass} flex items-center shrink-0">
                         ${playersContentHTML}
@@ -2898,14 +2905,17 @@
             const topIcon = document.getElementById('top-overlay-toggle-icon');
             const topText = document.getElementById('top-overlay-toggle-text');
 
-            const scaleRatio = IS_OVERLAY_ONLY ? 1 : (state.scale / 100);
+            // 1. 오버레이 송출 기본 비율 150% 적용 (화면 너비 초과 시 자동 안전 제한)
+            const requestedOverlayScale = (state.overlayScale || 150) / 100;
+            const scaleRatio = IS_OVERLAY_ONLY ? requestedOverlayScale : (state.scale / 100);
             const isLiveCleanOutput = (IS_OVERLAY_ONLY || state.isTransparent || state.isPanelHidden);
 
             fitTexts();
 
             const naturalCardWidth = Math.max(348, cardEl ? cardEl.offsetWidth : 348);
+            const maxViewportOverlayScale = Math.max(0.45, (window.innerWidth - 32) / naturalCardWidth);
             const overlayCardScale = IS_OVERLAY_ONLY
-                ? Math.min(1, Math.max(0.42, (window.innerWidth - 32) / naturalCardWidth))
+                ? Math.min(requestedOverlayScale, maxViewportOverlayScale)
                 : scaleRatio;
 
             if (scaleBoxEl && cardEl) {
@@ -2996,16 +3006,13 @@
             if (IS_OVERLAY_ONLY) {
                 bannerEl.style.display = pb.visible ? 'inline-flex' : 'none';
                 const maxOverlayWidth = Math.max(320, window.innerWidth - 48);
-                const autoFitScale = (naturalBannerWidth > maxOverlayWidth)
-                    ? Math.max(0.45, Math.floor((maxOverlayWidth / naturalBannerWidth) * 1000) / 1000)
-                    : 1;
+                const maxAllowedBannerScale = naturalBannerWidth > 0 ? (maxOverlayWidth / naturalBannerWidth) : requestedOverlayScale;
+                const autoFitScale = Math.min(requestedOverlayScale, maxAllowedBannerScale);
                 bannerEl.style.position = 'fixed';
                 bannerEl.style.left = '50%';
                 bannerEl.style.bottom = '112px';
                 bannerEl.style.transformOrigin = 'bottom center';
-                bannerEl.style.transform = autoFitScale < 1
-                    ? `translateX(-50%) scale(${autoFitScale})`
-                    : 'translateX(-50%)';
+                bannerEl.style.transform = `translateX(-50%) scale(${autoFitScale})`;
                 bannerEl.style.marginTop = '0px';
             } else {
                 const maxPreviewWidth = Math.max(280, window.innerWidth - 24);
@@ -3038,16 +3045,13 @@
                 if (IS_OVERLAY_ONLY) {
                     eventBannerEl.style.display = eb.visible ? 'inline-flex' : 'none';
                     const maxOverlayWidth = Math.max(320, window.innerWidth - 48);
-                    const autoFitEventScale = (naturalEventWidth > maxOverlayWidth)
-                        ? Math.max(0.45, Math.floor((maxOverlayWidth / naturalEventWidth) * 1000) / 1000)
-                        : 1;
+                    const maxAllowedEventOverlayScale = naturalEventWidth > 0 ? (maxOverlayWidth / naturalEventWidth) : requestedOverlayScale;
+                    const autoFitEventScale = Math.min(requestedOverlayScale, maxAllowedEventOverlayScale);
                     eventBannerEl.style.position = 'fixed';
                     eventBannerEl.style.left = '50%';
                     eventBannerEl.style.bottom = '72px';
                     eventBannerEl.style.transformOrigin = 'bottom center';
-                    eventBannerEl.style.transform = autoFitEventScale < 1
-                        ? `translateX(-50%) scale(${autoFitEventScale})`
-                        : 'translateX(-50%)';
+                    eventBannerEl.style.transform = `translateX(-50%) scale(${autoFitEventScale})`;
                     eventBannerEl.style.marginTop = '0px';
                 } else {
                     const maxPreviewWidth = Math.max(280, window.innerWidth - 24);
@@ -3099,6 +3103,7 @@
 
         function updateScale(val) {
             state.scale = Number(val);
+            state.overlayScale = Number(val);
             document.getElementById('scale-value-label').textContent = `${state.scale}%`;
             syncOverlayVisibility();
             persistLocalState();
@@ -3170,15 +3175,22 @@
             p2pSync.init();
             initCloudConnection();
 
-            requestAnimationFrame(() => {
-                document.body.classList.add('app-ready');
-            });
+            // 3. 초기 레이아웃/폰트 정렬이 모두 끝난 뒤 한 번에 노출하여 깜박임 제거
+            const revealApp = () => {
+                fitTexts();
+                syncOverlayVisibility();
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.add('app-ready');
+                });
+            };
 
             if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(() => {
-                    fitTexts();
-                    syncOverlayVisibility();
-                });
+                Promise.race([
+                    document.fonts.ready,
+                    new Promise(resolve => setTimeout(resolve, 600))
+                ]).then(revealApp);
+            } else {
+                revealApp();
             }
         });
     </script>
