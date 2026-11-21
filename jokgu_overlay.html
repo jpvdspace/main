@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="refresh" content="0; url=./jokgu_scoreboard.html?mode=overlay" />
+<script>
+  const params = new URLSearchParams(window.location.search);
+  params.set('mode', 'overlay');
+  if (!params.has('room')) params.set('room', 'jokgu-live');
+  window.location.replace('./jokgu_scoreboard.html?' + params.toString());
+</script>
+<title>족구 방송 오버레이 연결중...</title>
+</head>
+<body style="background:transparent;"></body>
+</html>
