@@ -17,6 +17,15 @@
             --left-col-w: 290px;
         }
 
+        /* 초기 시작 시 깜박임(FOUC) 방지 (JS 초기화 완료 후 .app-ready 부여) */
+        body {
+            opacity: 0;
+        }
+        body.app-ready {
+            opacity: 1;
+            transition: opacity 0.2s ease-out, background-color 0.25s ease;
+        }
+
         /* 100dvh 전체 화면 고정 분할: 상단 미리보기 고정, 하단 조작창만 독립 스크롤 */
         html, body {
             height: 100dvh;
@@ -27,33 +36,50 @@
             flex-direction: column;
             font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #11131a;
-            transition: background-color 0.25s ease;
         }
 
-        /* OBS 투명 배경 모드 또는 순수 오버레이 전용 모드(?mode=overlay) */
+        /* OBS 투명 배경 모드 또는 순수 오버레이 전용 모드(?mode=overlay): 화면 전체 덮어쓰기 방지 */
+        html.is-overlay-only,
         body.page-obs-transparent,
         body.overlay-only-mode {
+            background: transparent !important;
             background-color: transparent !important;
+        }
+
+        body.overlay-only-mode {
+            display: block !important;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden !important;
+            pointer-events: none !important;
         }
 
         body.overlay-only-mode #obs-header-bar,
         body.overlay-only-mode #control-panel,
-        body.overlay-only-mode #preview-off-badge,
         body.overlay-only-mode #btn-inline-edit-title,
         body.overlay-only-mode #floating-restore-btn,
-        body.overlay-only-mode #header-edit-modal {
+        body.overlay-only-mode #header-edit-modal,
+        body.overlay-only-mode #toast-container {
             display: none !important;
         }
 
         body.overlay-only-mode #top-fixed-section {
-            align-items: flex-start;
+            position: static !important;
+            width: auto !important;
+            background: transparent !important;
+            pointer-events: none !important;
         }
 
         body.overlay-only-mode #preview-wrapper {
-            padding: 24px;
-            align-items: flex-start;
-            justify-content: flex-start;
-            overflow: visible;
+            position: static !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+            pointer-events: none !important;
         }
 
         .font-score {
@@ -61,11 +87,12 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* 방송 그래픽 스코어보드 카드 스타일 (1~4단 우측 끝단 1px 오차 없이 완벽 수직 정렬) */
+        /* 방송 그래픽 스코어보드 카드 스타일 (1~4단 우측 끝단 완벽 수직 정렬) */
         .tv-scoreboard-card,
         .scoreboard-box {
             display: inline-flex;
             flex-direction: column;
+            align-items: stretch;
             width: fit-content;
             max-width: none;
             overflow: hidden;
@@ -74,7 +101,7 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
             -webkit-font-smoothing: antialiased;
             transform-origin: top center;
-            transition: opacity 0.55s ease-in-out, filter 0.55s ease-in-out;
+            transition: opacity 0.45s ease-in-out;
         }
 
         .scoreboard-box *,
@@ -86,20 +113,17 @@
         .sb-row-1 {
             width: 100%;
             height: 36px;
-            box-sizing: border-box;
         }
 
         .sb-row-2 {
             width: 100%;
             height: 28px;
-            box-sizing: border-box;
         }
 
         .sb-row-3,
         .sb-row-4 {
             width: 100%;
             height: 42px;
-            box-sizing: border-box;
         }
 
         .sb-left-col {
@@ -108,7 +132,6 @@
             max-width: var(--left-col-w);
             flex: 0 0 var(--left-col-w);
             height: 100%;
-            box-sizing: border-box;
         }
 
         .sb-set-col {
@@ -117,7 +140,6 @@
             max-width: 58px;
             flex: 0 0 58px;
             height: 100%;
-            box-sizing: border-box;
             border-left: 1px solid #CBD5E1;
         }
 
@@ -130,28 +152,24 @@
             box-shadow: none;
         }
 
-        /* 자막 송출 ON: 제자리에서 선명하게 디졸브-인(Dissolve In) */
+        /* 미리보기 & 오버레이 동일 ON / OFF 처리 */
         .tv-scoreboard-card.overlay-on {
             opacity: 1;
-            filter: none;
             pointer-events: auto;
         }
 
-        /* 자막 송출 OFF + 일반 편집 미리보기: 제자리에서 반투명 프리뷰로 부드럽게 디졸브 */
         .tv-scoreboard-card.overlay-off-preview {
             opacity: 0.45;
-            filter: grayscale(0.25);
+            filter: grayscale(0.2);
             pointer-events: auto;
         }
 
-        /* 자막 송출 OFF + 실제 OBS 투명/조작창 숨김/오버레이 전용 모드: 완전히 디졸브-아웃 */
         .tv-scoreboard-card.overlay-off-live {
             opacity: 0;
-            filter: none;
             pointer-events: none;
         }
 
-        /* 하단 별도 선수 소개 / 팀 전체 라인업 배너 (로워 서드) 순수 크로스 디졸브 애니메이션 */
+        /* 하단 별도 선수 소개 / 팀 전체 라인업 / 이벤트 배너 (로워 서드) */
         .lower-third-wrapper {
             display: inline-flex;
             flex-direction: column;
@@ -159,25 +177,15 @@
             justify-content: center;
             -webkit-font-smoothing: antialiased;
             transform-origin: bottom center;
-            transition: opacity 0.55s ease-in-out, filter 0.55s ease-in-out;
+            pointer-events: none;
         }
 
         .lower-third-wrapper.banner-on {
             opacity: 1;
-            filter: none;
-            pointer-events: auto;
         }
 
-        .lower-third-wrapper.banner-off-preview {
-            opacity: 0.45;
-            filter: grayscale(0.35);
-            pointer-events: auto;
-        }
-
-        .lower-third-wrapper.banner-off-live {
+        .lower-third-wrapper.banner-off {
             opacity: 0;
-            filter: none;
-            pointer-events: none;
         }
 
         .lower-third-bar {
@@ -187,14 +195,53 @@
             overflow: hidden;
             border-radius: 10px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-            transition: opacity 0.45s ease-in-out;
         }
 
-        body.overlay-only-mode .lower-third-bar {
+        /* 방송용 이벤트 로워 서드 배너 스타일 */
+        .event-third-bar {
+            display: inline-flex;
+            align-items: stretch;
+            height: 48px;
             width: max-content;
+            overflow: hidden;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
 
-        /* 팀 전체 선수 명단 행 내부 줄바꿈 절대 차단 (1줄 또는 최대 2줄 고정) */
+        /* 푸시 인(Push-in) & 페이드 아웃(Fade-out) 애니메이션 키프레임 */
+        @keyframes bannerPushIn {
+            0% {
+                opacity: 0;
+                transform: translateX(-56px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes bannerFadeOut {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(18px);
+            }
+        }
+
+        .anim-push-in {
+            animation: bannerPushIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .anim-fade-out {
+            animation: bannerFadeOut 0.45s ease-out forwards;
+            pointer-events: none;
+        }
+
+        /* 팀 전체 선수 명단 행 내부 줄바꿈 절대 차단 */
         .lineup-row-single {
             display: flex;
             flex-wrap: nowrap;
@@ -204,17 +251,10 @@
         }
 
         .page-obs-transparent .lower-third-bar,
-        .live-clean-mode .lower-third-bar {
+        .live-clean-mode .lower-third-bar,
+        .page-obs-transparent .event-third-bar,
+        .live-clean-mode .event-third-bar {
             box-shadow: none;
-        }
-
-        /* 1단 순차 디졸브 전환 시 바 내부 크로스 디졸브 상태 */
-        .lower-third-bar.bar-cross-dissolve-out {
-            opacity: 0;
-        }
-
-        #preview-off-badge {
-            transition: opacity 0.45s ease-in-out;
         }
 
         /* 득점 시 숫자 팝 애니메이션 */
@@ -238,6 +278,67 @@
             50% { opacity: 0.72; transform: scale(0.93); }
         }
 
+        /* 7종 이벤트 오버레이 전용 그래픽 모션 애니메이션 */
+        @keyframes evBallBounce {
+            0%, 100% { transform: translateY(2px) scaleY(0.92); }
+            45% { transform: translateY(-3.5px) scaleY(1.06); }
+        }
+        @keyframes evCourtSwap {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.08); }
+        }
+        @keyframes evSubSlideRight {
+            0%, 100% { transform: translateX(-2px); opacity: 0.85; }
+            50% { transform: translateX(2.5px); opacity: 1; }
+        }
+        @keyframes evSubSlideLeft {
+            0%, 100% { transform: translateX(2px); opacity: 0.85; }
+            50% { transform: translateX(-2.5px); opacity: 1; }
+        }
+        @keyframes evRefereePulse {
+            0%, 100% { transform: scale(1); }
+            35% { transform: scale(1.16) rotate(-6deg); }
+            70% { transform: scale(1.08) rotate(5deg); }
+        }
+        @keyframes evRefereeWave {
+            0%, 100% { opacity: 0.25; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.18); }
+        }
+        @keyframes evClockSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes evTimeoutPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+        @keyframes evHeartbeat {
+            0%, 100% { transform: scale(1); }
+            18% { transform: scale(1.24); }
+            32% { transform: scale(0.96); }
+            48% { transform: scale(1.18); }
+            68% { transform: scale(1); }
+        }
+        @keyframes evBellRing {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(16deg); }
+            30% { transform: rotate(-14deg); }
+            45% { transform: rotate(10deg); }
+            60% { transform: rotate(-8deg); }
+            75% { transform: rotate(4deg); }
+        }
+
+        .ev-anim-bounce { animation: evBallBounce 1.1s infinite ease-in-out; transform-origin: center; }
+        .ev-anim-court { animation: evCourtSwap 2.4s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95); transform-origin: center; }
+        .ev-anim-sub-r { animation: evSubSlideRight 1.3s infinite ease-in-out; }
+        .ev-anim-sub-l { animation: evSubSlideLeft 1.3s infinite ease-in-out; }
+        .ev-anim-referee { animation: evRefereePulse 1.5s infinite ease-in-out; transform-origin: center; }
+        .ev-anim-wave { animation: evRefereeWave 1.5s infinite ease-in-out; transform-origin: center; }
+        .ev-anim-clock { animation: evClockSpin 3s infinite linear; transform-origin: 12px 13px; }
+        .ev-anim-timeout { animation: evTimeoutPulse 1.4s infinite ease-in-out; transform-origin: center; }
+        .ev-anim-heartbeat { animation: evHeartbeat 1.35s infinite ease-in-out; transform-origin: center; }
+        .ev-anim-bell { animation: evBellRing 1.6s infinite ease-in-out; transform-origin: 12px 4px; }
+
         button {
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -256,12 +357,18 @@
         
         <!-- 컨트롤러 상단 툴바 (#obs-header-bar) -->
         <div id="obs-header-bar" class="w-full bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-1.5 flex flex-col gap-1.5 text-white">
-            <!-- 1행: [자막 송출 ON/OFF 단일 토글 버튼] · [미리보기 배율 슬라이더(기본 50%)] -->
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <button type="button" id="top-overlay-toggle-btn" onclick="toggleOverlayVisibility()" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black bg-slate-700/80 hover:bg-slate-600 active:scale-95 text-amber-300 border border-amber-500/50 shadow-md transition-all flex items-center gap-1.5">
-                    <span id="top-overlay-toggle-icon">🔇</span>
-                    <span id="top-overlay-toggle-text">자막 송출 OFF</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" id="top-overlay-toggle-btn" onclick="toggleOverlayVisibility()" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black bg-slate-700/80 hover:bg-slate-600 active:scale-95 text-amber-300 border border-amber-500/50 shadow-md transition-all flex items-center gap-1.5">
+                        <span id="top-overlay-toggle-icon">🔇</span>
+                        <span id="top-overlay-toggle-text">자막 송출 OFF</span>
+                    </button>
+
+                    <button type="button" id="btn-toggle-preview-collapse" onclick="togglePreviewCollapse()" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold bg-slate-800 hover:bg-slate-700 active:scale-95 text-sky-300 border border-slate-600 shadow transition-all flex items-center gap-1">
+                        <span id="icon-preview-collapse">🔼</span>
+                        <span id="text-preview-collapse">미리보기 접기</span>
+                    </button>
+                </div>
 
                 <div class="flex items-center gap-2 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
                     <span class="text-[11px] font-bold text-slate-400">배율</span>
@@ -270,7 +377,6 @@
                 </div>
             </div>
 
-            <!-- 2행: [OBS 투명 배경 모드] · [조작창 숨기기] · [실시간 오버레이 연동 & HTML 다운로드] -->
             <div class="flex flex-wrap items-center justify-between gap-1.5">
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="toggleBackgroundMode()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow transition-all flex items-center gap-1">
@@ -284,7 +390,6 @@
                     </button>
                 </div>
 
-                <!-- 오버레이 실시간 연동 & 전용 HTML 다운로드 컨트롤 -->
                 <div class="flex flex-wrap items-center gap-1.5 bg-slate-800/95 border border-slate-700 rounded-lg px-2 py-1">
                     <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="실시간 연동 활성"></span>
                     <span class="text-[11px] font-bold text-slate-400">방코드</span>
@@ -302,21 +407,12 @@
             </div>
         </div>
 
-        <!-- 순수 오버레이 미리보기 영역 (#preview-wrapper) -->
-        <div id="preview-wrapper" class="relative w-full overflow-x-auto px-3 sm:px-5 py-1 flex flex-col items-center justify-center gap-1">
+        <!-- 순수 오버레이와 동일하게 출력되는 미리보기 영역 (#preview-wrapper) -->
+        <div id="preview-wrapper" class="relative w-full overflow-x-auto px-3 sm:px-5 pt-2 pb-7 flex flex-col items-center justify-center gap-2 min-h-[42px]">
             
-            <!-- 상단 그룹: 송출 OFF 안내 배지 + 스코어보드 본체 -->
             <div id="scoreboard-scale-box" class="flex flex-col items-center shrink-0">
-                <!-- 자막 OFF + 편집 미리보기 모드일 때만 표시되는 소형 상태 배지 -->
-                <div id="preview-off-badge" class="opacity-100 pointer-events-none mb-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-extrabold tracking-tight flex items-center gap-1">
-                    <span>🔇</span>
-                    <span>송출 OFF · 반투명 미리보기 (방송 화면 미출력)</span>
-                </div>
-
-                <!-- 방송용 스코어보드 그래픽 본체 (#scoreboard-card) -->
-                <div id="scoreboard-card" class="tv-scoreboard-card scoreboard-box overlay-off-preview select-none">
+                <div id="scoreboard-card" class="tv-scoreboard-card scoreboard-box overlay-off select-none">
                     
-                    <!-- 1단: 대회명 + 날짜 로열 블루 헤더 바 (높이 36px, 상단 모서리 10px 둥글게) -->
                     <div style="background: linear-gradient(180deg, #0019C8 0%, #00119E 100%);" class="sb-row-1 text-white px-4 flex items-center justify-between gap-3 whitespace-nowrap">
                         <span id="display-title-bar" class="text-[20px] font-bold tracking-tight leading-none">
                             제13회 안양시의회 의장기 족구대회 (2026. 11. 7)
@@ -326,67 +422,45 @@
                         </button>
                     </div>
 
-                    <!-- 2단: 장소/경기방식 + 동적 세트 헤더(#111317 딥 차콜 블랙, 높이 28px) -->
                     <div class="sb-row-2 bg-[#111317] text-white flex items-center text-[18px] font-bold whitespace-nowrap">
-                        <!-- 좌측 장소 안내 영역 (--left-col-w 동적 폭) -->
                         <div class="sb-left-col px-4 flex items-center overflow-hidden">
                             <span id="display-venue" class="leading-none tracking-tight">장소 : 안양 새물공원 15점 3세트 (듀스없음)</span>
                         </div>
-                        <!-- 우측 세트 헤더 목록 (1SET, 2SET..., 각 58px 고정 너비) -->
-                        <div id="set-headers-container" class="flex shrink-0 h-full">
-                            <!-- JS 렌더링 -->
-                        </div>
+                        <div id="set-headers-container" class="flex shrink-0 h-full"></div>
                     </div>
 
-                    <!-- 3단: 상단 팀 행 (#FFFFFF, 슬림 42px 높이, 하단 1px 구분선 #CBD5E1) -->
                     <div class="sb-row-3 bg-[#FFFFFF] flex items-center border-b border-[#CBD5E1] whitespace-nowrap">
-                        <!-- 좌측 팀 정보 영역 (--left-col-w 동적 폭, 서브권 아이콘 팀명 바 오른쪽 끝 정렬) -->
                         <div id="top-team-left-col" class="sb-left-col pl-3.5 pr-[10px] flex items-center justify-between gap-2">
                             <div id="top-team-name-group" class="inline-flex items-center min-w-0">
-                                <!-- 초볼드 화살표 아이콘 (30x21) -->
                                 <div id="top-arrow-container" class="shrink-0 w-[30px] h-[21px] flex items-center justify-center mr-2"></div>
-                                <!-- 상단 팀명 (하단 팀명과 동일 폰트 크기 동기화) -->
                                 <span id="display-top-name" class="text-[24px] font-extrabold text-[#111827] tracking-tight leading-none">안양 밤꽃</span>
                             </div>
-                            <!-- 19px 원형 순수 공인 족구공 서브권 아이콘 (팀명 바 오른쪽 끝 배치) -->
                             <button type="button" id="serve-badge-top" onclick="event.stopPropagation(); toggleServeTeam();" title="서브권 전환" class="shrink-0 w-[19px] h-[19px] rounded-full flex items-center justify-center drop-shadow-[0_1.5px_2.5px_rgba(0,0,0,0.42)] serve-dot-pulse overflow-hidden">
                             </button>
                         </div>
-
-                        <!-- 우측 동적 세트별 점수 셀 (각 58px 고정 너비, 좌측 1px 구분선) -->
-                        <div id="top-scores-container" class="flex shrink-0 h-full">
-                            <!-- JS 렌더링 -->
-                        </div>
+                        <div id="top-scores-container" class="flex shrink-0 h-full"></div>
                     </div>
 
-                    <!-- 4단: 하단 팀 행 (#FFFFFF, 슬림 42px 높이) -->
                     <div class="sb-row-4 bg-[#FFFFFF] flex items-center whitespace-nowrap">
-                        <!-- 좌측 팀 정보 영역 (--left-col-w 동적 폭, 서브권 아이콘 팀명 바 오른쪽 끝 정렬) -->
                         <div class="sb-left-col pl-3.5 pr-[10px] flex items-center justify-between gap-2">
                             <div id="bottom-team-name-group" class="inline-flex items-center min-w-0">
-                                <!-- 초볼드 화살표 아이콘 (30x21) -->
                                 <div id="bottom-arrow-container" class="shrink-0 w-[30px] h-[21px] flex items-center justify-center mr-2"></div>
-                                <!-- 하단 팀명 (상단 팀명과 동일 폰트 크기 동기화) -->
                                 <span id="display-bottom-name" class="text-[24px] font-extrabold text-[#111827] tracking-tight leading-none">F2A-효준</span>
                             </div>
-                            <!-- 19px 원형 순수 공인 족구공 서브권 아이콘 (팀명 바 오른쪽 끝 배치) -->
                             <button type="button" id="serve-badge-bottom" onclick="event.stopPropagation(); toggleServeTeam();" title="서브권 전환" class="hidden shrink-0 w-[19px] h-[19px] rounded-full flex items-center justify-center drop-shadow-[0_1.5px_2.5px_rgba(0,0,0,0.42)] serve-dot-pulse overflow-hidden">
                             </button>
                         </div>
-
-                        <!-- 우측 동적 세트별 점수 셀 (각 58px 고정 너비, 좌측 1px 구분선) -->
-                        <div id="bottom-scores-container" class="flex shrink-0 h-full">
-                            <!-- JS 렌더링 -->
-                        </div>
+                        <div id="bottom-scores-container" class="flex shrink-0 h-full"></div>
                     </div>
 
                 </div>
             </div>
 
-            <!-- 하단 그룹: 별도 선수 소개 / 팀 전체 라인업 배너 (#player-banner-wrapper) -->
-            <div id="player-banner-wrapper" class="lower-third-wrapper banner-off-preview select-none shrink-0">
-                <!-- JS 렌더링 -->
-            </div>
+            <!-- 화면 중앙 하단 선수 소개 / 팀 전체 라인업 배너 (#player-banner-wrapper) -->
+            <div id="player-banner-wrapper" class="lower-third-wrapper banner-off select-none shrink-0"></div>
+
+            <!-- 화면 중앙 하단 이벤트 오버레이 배너 (#event-banner-wrapper) -->
+            <div id="event-banner-wrapper" class="lower-third-wrapper banner-off select-none shrink-0"></div>
 
         </div>
     </header>
@@ -417,105 +491,92 @@
         </div>
     </div>
 
-    <!-- 조작창 숨김 시 우측 상단 반투명 복귀 버튼 -->
     <button type="button" id="floating-restore-btn" onclick="restoreNormalView()" class="hidden fixed top-3 right-3 z-50 bg-slate-900/75 hover:bg-slate-900/95 backdrop-blur-xs text-white border border-slate-500/60 px-3.5 py-2 rounded-full shadow-xl text-xs font-extrabold flex items-center gap-1.5 transition-all">
         <span>🎛️ 조작창 열기</span>
     </button>
 
     <!-- =====================================================================
-         2. 하단 독립 스크롤 조작 영역 (flex-1 overflow-y-auto, 스마트폰 터치 최적화)
+         2. 하단 독립 스크롤 조작 영역
          ===================================================================== -->
     <main id="control-panel" class="flex-1 overflow-y-auto min-h-0 w-full bg-[#171a23] border-t border-slate-800 px-3 sm:px-5 py-2.5">
         <div class="max-w-[980px] mx-auto flex flex-col gap-3 pb-10">
 
-            <!-- [섹션 1] 팀별 대형 터치 득점 카드 (최상단 헤더 중앙 소형 '세트점수 +/-' 토글 배치) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 
-                <!-- 상단 팀 (TOP TEAM - 고정 블루 #3851B5) 컨트롤 카드 -->
-                <div id="ctrl-top-card" class="bg-slate-900 border-2 border-[#3851B5] rounded-2xl p-3 shadow-lg transition-colors duration-200">
+                <!-- 상단 팀 컨트롤 카드 -->
+                <div id="ctrl-top-card" class="bg-slate-900 border-2 border-[#C93725] rounded-2xl p-3 shadow-lg transition-colors duration-200">
                     <div class="flex items-center justify-between gap-1.5 mb-2">
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <span id="ctrl-top-badge" class="w-3 h-3 rounded-full bg-[#3851B5]"></span>
-                            <span id="ctrl-top-dir-label" class="text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#3851B5]/30 text-blue-200">▼ 블루 코트</span>
+                            <span id="ctrl-top-badge" class="w-3 h-3 rounded-full bg-[#C93725]"></span>
+                            <span id="ctrl-top-dir-label" class="text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#C93725]/30 text-red-200">▲ 레드 코트 (상단)</span>
                         </div>
 
-                        <!-- 중앙 소형 토글 버튼 ('세트점수 +' / '세트점수 -', 기본 접힘) -->
                         <button type="button" id="btn-toggle-top-sets" onclick="toggleTeamSetEditor('top')" class="h-[30px] px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600/90 text-slate-200 text-[11px] font-extrabold flex items-center gap-1 transition-all shrink-0">
                             <span>세트점수</span>
                             <span id="icon-toggle-top-sets" class="text-sky-300 font-black">+</span>
                         </button>
 
-                        <button type="button" onclick="setServe('top')" class="h-[32px] px-2.5 rounded-lg bg-amber-500/20 active:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[11px] font-bold flex items-center gap-1 shrink-0">
+                        <button type="button" id="btn-serve-top" onclick="setServe('top')" class="h-[32px] px-2.5 rounded-lg text-[11px] font-extrabold flex items-center gap-1 shrink-0 transition-all">
                             <span id="btn-serve-icon-top" class="w-3.5 h-3.5 rounded-full overflow-hidden inline-flex shrink-0 shadow-xs"></span>
-                            <span>서브권 지정</span>
+                            <span id="btn-serve-label-top">서브권 지정</span>
                         </button>
                     </div>
 
-                    <!-- 헤더 바로 아래 펼쳐지는 세트별 개별 점수 미세 조정 박스 (기본 접힘) -->
-                    <div id="ctrl-top-sets-grid" class="hidden flex-wrap items-stretch gap-1.5 mb-2.5 p-2 rounded-xl bg-slate-950/75 border border-slate-800">
-                        <!-- JS 렌더링 -->
-                    </div>
+                    <div id="ctrl-top-sets-grid" class="hidden flex-wrap items-stretch gap-1.5 mb-2.5 p-2 rounded-xl bg-slate-950/75 border border-slate-800"></div>
 
-                    <input type="text" id="input-top-name" value="안양 밤꽃" oninput="updateTeamNames()" placeholder="상단 팀명 입력" class="w-full h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3 text-sm font-bold text-white mb-2.5 focus:outline-none focus:border-blue-500">
+                    <input type="text" id="input-top-name" value="안양 밤꽃" oninput="updateTeamNames()" placeholder="상단 팀명 입력" class="w-full h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3 text-sm font-bold text-white mb-2.5 focus:outline-none focus:border-red-500">
 
-                    <!-- 대형 터치 득점(+1) / 감점(-1) 버튼 -->
                     <div class="grid grid-cols-3 gap-2">
-                        <button type="button" id="btn-top-plus" onclick="changeActiveScore('top', 1)" style="background-color: #3851B5;" class="col-span-2 min-h-[52px] active:scale-[0.97] text-white font-black rounded-xl shadow-lg text-base sm:text-lg transition-transform flex items-center justify-center">
+                        <button type="button" id="btn-top-plus" onclick="changeActiveScore('top', 1)" style="background-color: #C93725;" class="col-span-2 min-h-[54px] active:scale-[0.97] text-white font-black rounded-xl shadow-lg text-base sm:text-lg transition-transform flex items-center justify-center gap-2">
                             <span>+1 득점 (<span class="active-set-label">1SET</span>)</span>
+                            <span class="px-2 py-0.5 rounded-lg bg-black/30 text-amber-200 font-score text-lg sm:text-xl font-black" id="btn-top-current-score">0</span>
                         </button>
-                        <button type="button" onclick="changeActiveScore('top', -1)" class="min-h-[52px] bg-slate-800 active:bg-slate-700 active:scale-[0.97] border border-slate-700 text-slate-200 font-black rounded-xl text-base sm:text-lg transition-transform flex items-center justify-center">
+                        <button type="button" onclick="changeActiveScore('top', -1)" class="min-h-[54px] bg-slate-800 active:bg-slate-700 active:scale-[0.97] border border-slate-700 text-slate-200 font-black rounded-xl text-base sm:text-lg transition-transform flex items-center justify-center">
                             -1
                         </button>
                     </div>
                 </div>
 
-                <!-- 하단 팀 (BOTTOM TEAM - 고정 레드 #C93725) 컨트롤 카드 -->
-                <div id="ctrl-bottom-card" class="bg-slate-900 border-2 border-[#C93725] rounded-2xl p-3 shadow-lg transition-colors duration-200">
+                <!-- 하단 팀 컨트롤 카드 -->
+                <div id="ctrl-bottom-card" class="bg-slate-900 border-2 border-[#3851B5] rounded-2xl p-3 shadow-lg transition-colors duration-200">
                     <div class="flex items-center justify-between gap-1.5 mb-2">
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <span id="ctrl-bottom-badge" class="w-3 h-3 rounded-full bg-[#C93725]"></span>
-                            <span id="ctrl-bottom-dir-label" class="text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#C93725]/30 text-red-200">▲ 레드 코트</span>
+                            <span id="ctrl-bottom-badge" class="w-3 h-3 rounded-full bg-[#3851B5]"></span>
+                            <span id="ctrl-bottom-dir-label" class="text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#3851B5]/30 text-blue-200">▼ 블루 코트 (하단)</span>
                         </div>
 
-                        <!-- 중앙 소형 토글 버튼 ('세트점수 +' / '세트점수 -', 기본 접힘) -->
                         <button type="button" id="btn-toggle-bottom-sets" onclick="toggleTeamSetEditor('bottom')" class="h-[30px] px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600/90 text-slate-200 text-[11px] font-extrabold flex items-center gap-1 transition-all shrink-0">
                             <span>세트점수</span>
                             <span id="icon-toggle-bottom-sets" class="text-sky-300 font-black">+</span>
                         </button>
 
-                        <button type="button" onclick="setServe('bottom')" class="h-[32px] px-2.5 rounded-lg bg-amber-500/20 active:bg-amber-500/40 border border-amber-500/40 text-amber-300 text-[11px] font-bold flex items-center gap-1 shrink-0">
+                        <button type="button" id="btn-serve-bottom" onclick="setServe('bottom')" class="h-[32px] px-2.5 rounded-lg text-[11px] font-extrabold flex items-center gap-1 shrink-0 transition-all">
                             <span id="btn-serve-icon-bottom" class="w-3.5 h-3.5 rounded-full overflow-hidden inline-flex shrink-0 shadow-xs"></span>
-                            <span>서브권 지정</span>
+                            <span id="btn-serve-label-bottom">서브권 지정</span>
                         </button>
                     </div>
 
-                    <!-- 헤더 바로 아래 펼쳐지는 세트별 개별 점수 미세 조정 박스 (기본 접힘) -->
-                    <div id="ctrl-bottom-sets-grid" class="hidden flex-wrap items-stretch gap-1.5 mb-2.5 p-2 rounded-xl bg-slate-950/75 border border-slate-800">
-                        <!-- JS 렌더링 -->
-                    </div>
+                    <div id="ctrl-bottom-sets-grid" class="hidden flex-wrap items-stretch gap-1.5 mb-2.5 p-2 rounded-xl bg-slate-950/75 border border-slate-800"></div>
 
                     <input type="text" id="input-bottom-name" value="F2A-효준" oninput="updateTeamNames()" placeholder="하단 팀명 입력" class="w-full h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3 text-sm font-bold text-white mb-2.5 focus:outline-none focus:border-blue-500">
 
-                    <!-- 대형 터치 득점(+1) / 감점(-1) 버튼 -->
                     <div class="grid grid-cols-3 gap-2">
-                        <button type="button" id="btn-bottom-plus" onclick="changeActiveScore('bottom', 1)" style="background-color: #C93725;" class="col-span-2 min-h-[52px] active:scale-[0.97] text-white font-black rounded-xl shadow-lg text-base sm:text-lg transition-transform flex items-center justify-center">
+                        <button type="button" id="btn-bottom-plus" onclick="changeActiveScore('bottom', 1)" style="background-color: #3851B5;" class="col-span-2 min-h-[54px] active:scale-[0.97] text-white font-black rounded-xl shadow-lg text-base sm:text-lg transition-transform flex items-center justify-center gap-2">
                             <span>+1 득점 (<span class="active-set-label">1SET</span>)</span>
+                            <span class="px-2 py-0.5 rounded-lg bg-black/30 text-amber-200 font-score text-lg sm:text-xl font-black" id="btn-bottom-current-score">0</span>
                         </button>
-                        <button type="button" onclick="changeActiveScore('bottom', -1)" class="min-h-[52px] bg-slate-800 active:bg-slate-700 active:scale-[0.97] border border-slate-700 text-slate-200 font-black rounded-xl text-base sm:text-lg transition-transform flex items-center justify-center">
+                        <button type="button" onclick="changeActiveScore('bottom', -1)" class="min-h-[54px] bg-slate-800 active:bg-slate-700 active:scale-[0.97] border border-slate-700 text-slate-200 font-black rounded-xl text-base sm:text-lg transition-transform flex items-center justify-center">
                             -1
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- [섹션 2] 진행 세트 선택 / 세트 추가·삭제 & 진영·서브권 빠른 조작 -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-xs font-extrabold text-slate-400 mr-1">진행 세트 선택:</span>
-                        <div id="ctrl-set-tabs" class="flex flex-wrap items-center gap-1.5">
-                            <!-- JS 렌더링 -->
-                        </div>
+                        <div id="ctrl-set-tabs" class="flex flex-wrap items-center gap-1.5"></div>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -528,11 +589,10 @@
                     </div>
                 </div>
 
-                <!-- 진영 교체 & 서브권 교대 대형 버튼 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t border-slate-800">
                     <button type="button" onclick="toggleSides()" class="min-h-[48px] px-4 rounded-xl bg-slate-800 active:bg-slate-700 text-white text-sm font-extrabold border border-slate-700 flex items-center justify-center gap-2 transition-colors">
                         <span class="text-base">⇅</span>
-                        <span>진영 교체 (화살표 전환)</span>
+                        <span>진영 교체 (화살표 고정 · 팀/점수 반전)</span>
                     </button>
                     <button type="button" onclick="toggleServeTeam()" class="min-h-[48px] px-4 rounded-xl bg-amber-500/20 active:bg-amber-500/35 text-amber-300 text-sm font-extrabold border border-amber-500/40 flex items-center justify-center gap-2 transition-colors">
                         <span id="btn-serve-icon-swap" class="w-5 h-5 rounded-full overflow-hidden inline-flex shrink-0 shadow-xs"></span>
@@ -541,7 +601,7 @@
                 </div>
             </div>
 
-            <!-- [섹션 3] 팀 로스터 저장·불러오기 & 하단 별도 선수 소개 / 1단 순차 디졸브 배너 -->
+            <!-- [섹션 3] 팀 로스터 불러오기 & 하단 선수 소개 배너 -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
@@ -559,12 +619,11 @@
                     </div>
                 </div>
 
-                <!-- 양 팀 전체 선수 명단 1단 순차 크로스 디졸브 출력 버튼 & 타이머 설정 바 (전환간격 7초, 자동내림 8초 기본) -->
                 <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex flex-col gap-2.5">
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                        <button type="button" id="btn-show-both-lineups" onclick="toggleSequentialTeamsLineupBanner()" class="flex-1 min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-[#0F2350] via-indigo-800 to-[#9b2416] hover:brightness-110 active:scale-[0.99] border border-white/15 text-white text-sm font-black shadow-md transition-all flex items-center justify-center gap-2">
+                        <button type="button" id="btn-show-both-lineups" onclick="toggleSequentialTeamsLineupBanner()" class="flex-1 min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-[#9b2416] via-indigo-800 to-[#0F2350] hover:brightness-110 active:scale-[0.99] border border-white/15 text-white text-sm font-black shadow-md transition-all flex items-center justify-center gap-2">
                             <span>📢</span>
-                            <span id="btn-show-both-lineups-text">양 팀 전체 선수 명단 1단 순차 디졸브 출력</span>
+                            <span id="btn-show-both-lineups-text">양 팀 전체 선수 명단 순차 출력 (푸시인 · 페이드아웃)</span>
                         </button>
 
                         <div class="flex items-center justify-end gap-2 shrink-0">
@@ -593,7 +652,6 @@
                         </div>
                     </div>
 
-                    <!-- 배너 송출 중일 때 나타나는 실시간 카운트다운 진행 상태 및 즉시 제어 바 -->
                     <div id="sequence-status-bar" class="hidden flex items-center justify-between gap-2 bg-emerald-950/70 border border-emerald-500/40 rounded-lg px-3 py-2">
                         <span id="sequence-status-text" class="text-xs font-extrabold text-emerald-200">송출 중...</span>
                         <div class="flex items-center gap-1.5 shrink-0">
@@ -607,19 +665,17 @@
                     </div>
                 </div>
 
-                <!-- 상단 팀 / 하단 팀 저장 로스터 불러오기 & 팀 전체 / 개별 선수 송출 패널 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <!-- 상단 팀 로스터 영역 (고정 블루 #3851B5) -->
-                    <div id="roster-top-card" class="bg-slate-950/60 border border-[#3851B5]/55 rounded-xl p-3 flex flex-col gap-2.5 transition-colors duration-200">
+                    <div id="roster-top-card" class="bg-slate-950/60 border border-[#C93725]/55 rounded-xl p-3 flex flex-col gap-2.5 transition-colors duration-200">
                         <div class="flex items-center gap-2">
-                            <span id="roster-top-dot" class="w-2.5 h-2.5 rounded-full bg-[#3851B5] shrink-0"></span>
+                            <span id="roster-top-dot" class="w-2.5 h-2.5 rounded-full bg-[#C93725] shrink-0"></span>
                             <span class="text-xs font-extrabold text-slate-300 shrink-0">상단 팀</span>
-                            <select id="select-top-roster" class="flex-1 min-w-0 h-[40px] bg-slate-800 border border-slate-700 rounded-lg px-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"></select>
-                            <button type="button" id="btn-apply-top-roster" onclick="applySavedTeamToSlot('top')" style="background-color: #3851B5;" class="h-[40px] px-3 rounded-lg hover:brightness-110 active:scale-95 text-white text-xs font-black shrink-0 transition-all">
+                            <select id="select-top-roster" class="flex-1 min-w-0 h-[40px] bg-slate-800 border border-slate-700 rounded-lg px-2.5 text-xs font-bold text-white focus:outline-none focus:border-red-500"></select>
+                            <button type="button" id="btn-apply-top-roster" onclick="applySavedTeamToSlot('top')" style="background-color: #C93725;" class="h-[40px] px-3 rounded-lg hover:brightness-110 active:scale-95 text-white text-xs font-black shrink-0 transition-all">
                                 불러오기
                             </button>
                         </div>
-                        <button type="button" id="btn-show-top-lineup" onclick="toggleTeamLineupBanner('top')" style="background-color: #3851B5;" class="w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border border-white/25 text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5">
+                        <button type="button" id="btn-show-top-lineup" onclick="toggleTeamLineupBanner('top')" style="background-color: #C93725;" class="w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border border-white/25 text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5">
                             <span>📢</span>
                             <span id="btn-show-top-lineup-text">상단 팀 전체 선수 한 번에 출력</span>
                         </button>
@@ -627,17 +683,16 @@
                         <div id="top-players-button-list" class="flex flex-wrap gap-1.5"></div>
                     </div>
 
-                    <!-- 하단 팀 로스터 영역 (고정 레드 #C93725) -->
-                    <div id="roster-bottom-card" class="bg-slate-950/60 border border-[#C93725]/55 rounded-xl p-3 flex flex-col gap-2.5 transition-colors duration-200">
+                    <div id="roster-bottom-card" class="bg-slate-950/60 border border-[#3851B5]/55 rounded-xl p-3 flex flex-col gap-2.5 transition-colors duration-200">
                         <div class="flex items-center gap-2">
-                            <span id="roster-bottom-dot" class="w-2.5 h-2.5 rounded-full bg-[#C93725] shrink-0"></span>
+                            <span id="roster-bottom-dot" class="w-2.5 h-2.5 rounded-full bg-[#3851B5] shrink-0"></span>
                             <span class="text-xs font-extrabold text-slate-300 shrink-0">하단 팀</span>
                             <select id="select-bottom-roster" class="flex-1 min-w-0 h-[40px] bg-slate-800 border border-slate-700 rounded-lg px-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"></select>
-                            <button type="button" id="btn-apply-bottom-roster" onclick="applySavedTeamToSlot('bottom')" style="background-color: #C93725;" class="h-[40px] px-3 rounded-lg hover:brightness-110 active:scale-95 text-white text-xs font-black shrink-0 transition-all">
+                            <button type="button" id="btn-apply-bottom-roster" onclick="applySavedTeamToSlot('bottom')" style="background-color: #3851B5;" class="h-[40px] px-3 rounded-lg hover:brightness-110 active:scale-95 text-white text-xs font-black shrink-0 transition-all">
                                 불러오기
                             </button>
                         </div>
-                        <button type="button" id="btn-show-bottom-lineup" onclick="toggleTeamLineupBanner('bottom')" style="background-color: #C93725;" class="w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border border-white/25 text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5">
+                        <button type="button" id="btn-show-bottom-lineup" onclick="toggleTeamLineupBanner('bottom')" style="background-color: #3851B5;" class="w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border border-white/25 text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5">
                             <span>📢</span>
                             <span id="btn-show-bottom-lineup-text">하단 팀 전체 선수 한 번에 출력</span>
                         </button>
@@ -646,7 +701,6 @@
                     </div>
                 </div>
 
-                <!-- 팀 및 선수 명단 등록/수정/삭제 아코디언 패널 -->
                 <div id="roster-manager-panel" class="hidden bg-slate-950 border border-indigo-500/40 rounded-xl p-3.5 flex flex-col gap-3 mt-1">
                     <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
                         <div class="flex flex-wrap items-center gap-2">
@@ -682,19 +736,36 @@
                 </div>
             </div>
 
-            <!-- [섹션 4] 경기 종료 후 점수 초기화 (2단계 터치 확인) -->
+            <!-- [섹션 4] 이벤트 오버레이 7종 방송 그래픽 배너 제어 (맞춤법 및 띄어쓰기 교정 + 모션 그래픽) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🎬</span>
+                        <span class="text-sm font-black text-white">이벤트 오버레이 7종 (중앙 하단 위쪽 배치)</span>
+                        <span class="text-[11px] font-bold text-slate-400 hidden sm:inline">클릭 시 푸시인 · 재클릭 시 페이드아웃</span>
+                    </div>
+                    <button type="button" onclick="hideEventBanner()" class="min-h-[38px] px-3 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-300 text-xs font-extrabold">
+                        🔇 이벤트 내리기 (OFF)
+                    </button>
+                </div>
+
+                <div id="event-buttons-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <!-- JS 렌더링 -->
+                </div>
+            </div>
+
+            <!-- [섹션 5] 경기 종료 후 점수 초기화 (2단계 터치 확인) -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
                 <div id="reset-initial-box" class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                     <div>
                         <div class="text-sm font-extrabold text-slate-200">경기 종료 / 새 경기 시작</div>
-                        <div class="text-xs text-slate-400">대회명·장소·팀명은 유지하고 1세트 0 : 0 (상단 ▼블루 / 하단 ▲레드) 상태로 복귀합니다.</div>
+                        <div class="text-xs text-slate-400">대회명·장소·팀명은 유지하고 1세트 0 : 0 (상단 ▲레드 / 하단 ▼블루) 상태로 복귀합니다.</div>
                     </div>
                     <button type="button" onclick="askResetConfirm()" class="min-h-[50px] px-5 rounded-xl bg-rose-600/90 active:bg-rose-600 text-white text-sm font-black shadow transition-colors shrink-0">
                         🔄 점수 초기화 (1세트 0:0 복귀)
                     </button>
                 </div>
 
-                <!-- 2단계 확인 UI (alert/confirm 미사용) -->
                 <div id="reset-confirm-box" class="hidden flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-rose-950/60 border border-rose-500/50 rounded-xl p-3">
                     <div class="text-sm font-extrabold text-rose-200">
                         모든 점수를 지우고 1세트 0 : 0으로 초기화할까요?
@@ -710,7 +781,7 @@
                 </div>
             </div>
 
-            <!-- [섹션 5] 대회명 / 날짜 / 장소·경기방식 입력란 -->
+            <!-- [섹션 6] 대회명 / 날짜 / 장소·경기방식 입력란 -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div class="md:col-span-2">
                     <label class="block text-xs font-bold text-slate-400 mb-1.5">대회명</label>
@@ -730,7 +801,7 @@
     </main>
 
     <!-- =====================================================================
-         3. 상태 관리, 실시간 연동(Firebase + BroadcastChannel + localStorage) & 순수 오버레이 동기화
+         3. 상태 관리, 실시간 연동 & 순수 오버레이 동기화
          ===================================================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -801,7 +872,7 @@
         const COLOR_BLUE = '#3851B5';
         const COLOR_RED = '#C93725';
         const STORAGE_KEY_TEAMS = 'jokgu_saved_teams_v1';
-        const STORAGE_KEY_STATE = 'jokgu_scoreboard_state_v2';
+        const STORAGE_KEY_STATE = 'jokgu_scoreboard_state_v3';
         const STORAGE_KEY_LIVE_PAYLOAD = 'jokgu_live_overlay_payload_v1';
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -810,10 +881,160 @@
         const INSTANCE_SENDER_ID = 'inst-' + Math.random().toString(36).slice(2, 10);
         let lastAppliedTimestamp = 0;
 
-        // BroadcastChannel('jokgu_scoreboard_sync') 실시간 통신 채널
+        if (IS_OVERLAY_ONLY) {
+            document.documentElement.classList.add('is-overlay-only');
+        }
+
         const liveChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('jokgu_scoreboard_sync') : null;
 
-        // 기본 샘플 팀 로스터 데이터
+        // 맞춤법 및 띄어쓰기가 교정된 7종 모션 그래픽 이벤트 오버레이 정의
+        const EVENT_OVERLAY_ITEMS = [
+            {
+                id: 'pre-match',
+                label: '경기 시작 전',
+                subLabel: 'PREPARE',
+                accentColor: '#1D4ED8',
+                gradient: 'linear-gradient(135deg, #0B1E5B 0%, #1D4ED8 100%)',
+                badgeBg: '#FACC15',
+                badgeText: '#0F172A',
+                iconType: 'prematch'
+            },
+            {
+                id: 'court-change',
+                label: '코트 체인지',
+                subLabel: 'COURT CHANGE',
+                accentColor: '#0284C7',
+                gradient: 'linear-gradient(135deg, #0F294A 0%, #0284C7 100%)',
+                badgeBg: '#38BDF8',
+                badgeText: '#082F49',
+                iconType: 'courtchange'
+            },
+            {
+                id: 'substitution',
+                label: '선수 교체',
+                subLabel: 'SUBSTITUTION',
+                accentColor: '#7C3AED',
+                gradient: 'linear-gradient(135deg, #2E1065 0%, #6D28D9 100%)',
+                badgeBg: '#DDD6FE',
+                badgeText: '#3B0764',
+                iconType: 'substitution'
+            },
+            {
+                id: 'video-review',
+                label: '합의심',
+                subLabel: 'REFEREE CHECK',
+                accentColor: '#D97706',
+                gradient: 'linear-gradient(135deg, #3B1D06 0%, #B45309 100%)',
+                badgeBg: '#FBBF24',
+                badgeText: '#1C1917',
+                iconType: 'review'
+            },
+            {
+                id: 'timeout',
+                label: '작전 타임',
+                subLabel: 'TIME OUT',
+                accentColor: '#059669',
+                gradient: 'linear-gradient(135deg, #063829 0%, #059669 100%)',
+                badgeBg: '#34D399',
+                badgeText: '#022C22',
+                iconType: 'timeout'
+            },
+            {
+                id: 'first-aid',
+                label: '응급 처치',
+                subLabel: 'MEDICAL / FIRST AID',
+                accentColor: '#E11D48',
+                gradient: 'linear-gradient(135deg, #4C0519 0%, #BE123C 100%)',
+                badgeBg: '#FDA4AF',
+                badgeText: '#4C0519',
+                iconType: 'medical'
+            },
+            {
+                id: 'subscribe-like',
+                label: '구독 · 좋아요',
+                subLabel: 'SUBSCRIBE & LIKE',
+                accentColor: '#DC2626',
+                gradient: 'linear-gradient(135deg, #450A0A 0%, #DC2626 100%)',
+                badgeBg: '#FFFFFF',
+                badgeText: '#B91C1C',
+                iconType: 'subscribe'
+            }
+        ];
+
+        // 7종 이벤트 오버레이 전용 움직이는 SVG 그래픽 생성
+        function getEventGraphicSVG(iconType) {
+            switch (iconType) {
+                case 'prematch':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none">
+                        <ellipse cx="12" cy="21" rx="5.5" ry="1.4" fill="currentColor" opacity="0.28"/>
+                        <g class="ev-anim-bounce">
+                            <circle cx="12" cy="11" r="7.2" fill="#FFFFFF" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M5.2 11 C7 7.5, 17 7.5, 18.8 11 C17 14.5, 7 14.5, 5.2 11 Z" fill="#DC2626"/>
+                            <circle cx="12" cy="11" r="7.2" stroke="currentColor" stroke-width="1.8"/>
+                        </g>
+                    </svg>`;
+                case 'courtchange':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <g class="ev-anim-court">
+                            <path d="M4 9a8 8 0 0 1 13.5-4.5L20 7"/>
+                            <polyline points="20 3 20 7 16 7"/>
+                            <path d="M20 15a8 8 0 0 1-13.5 4.5L4 17"/>
+                            <polyline points="4 21 4 17 8 17"/>
+                        </g>
+                    </svg>`;
+                case 'substitution':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="7" cy="6" r="2.2" fill="currentColor" stroke="none"/>
+                        <path d="M3.5 13c0-2 1.6-3.2 3.5-3.2s3.5 1.2 3.5 3.2"/>
+                        <circle cx="17" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+                        <path d="M13.5 21c0-2 1.6-3.2 3.5-3.2s3.5 1.2 3.5 3.2"/>
+                        <g class="ev-anim-sub-r">
+                            <path d="M12 6h7l-2.2-2.2"/>
+                        </g>
+                        <g class="ev-anim-sub-l">
+                            <path d="M12 18H5l2.2 2.2"/>
+                        </g>
+                    </svg>`;
+                case 'review':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle class="ev-anim-wave" cx="12" cy="12" r="9.5" stroke-dasharray="3 3"/>
+                        <g class="ev-anim-referee">
+                            <circle cx="12" cy="12" r="6.5" fill="currentColor" fill-opacity="0.14"/>
+                            <polyline points="9.2 12.2 11.2 14.2 15.2 10"/>
+                        </g>
+                    </svg>`;
+                case 'timeout':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <g class="ev-anim-timeout">
+                            <path d="M9 2h6"/>
+                            <path d="M12 2v3"/>
+                            <circle cx="12" cy="13" r="8"/>
+                        </g>
+                        <g class="ev-anim-clock">
+                            <path d="M12 13V8.5"/>
+                            <circle cx="12" cy="13" r="1.2" fill="currentColor"/>
+                        </g>
+                    </svg>`;
+                case 'medical':
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="4.5" fill="currentColor" fill-opacity="0.12"/>
+                        <g class="ev-anim-heartbeat">
+                            <path d="M12 7.5v9" stroke-width="3"/>
+                            <path d="M7.5 12h9" stroke-width="3"/>
+                        </g>
+                    </svg>`;
+                case 'subscribe':
+                default:
+                    return `<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0 overflow-visible" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <g class="ev-anim-bell">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </g>
+                        <circle class="ev-anim-heartbeat" cx="18.5" cy="5.5" r="2.6" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.2"/>
+                    </svg>`;
+            }
+        }
+
         const DEFAULT_SAVED_TEAMS = [
             {
                 id: 'team-anyang-bamkkot',
@@ -865,7 +1086,6 @@
 
         const savedBoard = loadSavedBoardState();
 
-        // 전체 애플리케이션 상태 (초기 기본값: overlayVisible = false, scale = 50, 상단 파랑▼ / 하단 빨강▲, 전환간격 7초, 자동내림 8초)
         const state = {
             roomCode: savedBoard?.roomCode ?? INITIAL_ROOM_CODE,
             tournament: savedBoard?.tournament ?? "제13회 안양시의회 의장기 족구대회",
@@ -878,23 +1098,25 @@
             serveTeam: savedBoard?.serveTeam === 'bottom' ? 'bottom' : 'top',
             scale: typeof savedBoard?.scale === 'number' ? savedBoard.scale : 50,
             overlayVisible: typeof savedBoard?.overlayVisible === 'boolean' ? savedBoard.overlayVisible : false,
+            isPreviewCollapsed: false,
             isTransparent: false,
             isPanelHidden: false,
             topTeam: {
                 name: savedBoard?.topTeam?.name ?? "안양 밤꽃",
-                direction: savedBoard?.topTeam?.direction ?? "down",
-                color: COLOR_BLUE
+                direction: "up",
+                color: COLOR_RED
             },
             bottomTeam: {
                 name: savedBoard?.bottomTeam?.name ?? "F2A-효준",
-                direction: savedBoard?.bottomTeam?.direction ?? "up",
-                color: COLOR_RED
+                direction: "down",
+                color: COLOR_BLUE
             },
             savedTeams: loadLocalSavedTeams(),
             loadedTopTeamId: savedBoard?.loadedTopTeamId ?? 'team-anyang-bamkkot',
             loadedBottomTeamId: savedBoard?.loadedBottomTeamId ?? 'team-f2a-hyojun',
             playerBanner: {
                 visible: false,
+                fadingOut: false,
                 mode: 'single',
                 slot: 'top',
                 sequenceStep: 0,
@@ -903,7 +1125,14 @@
                 position: '공격수',
                 note: 'NO.7',
                 playerId: '',
-                teamId: 'team-anyang-bamkkot'
+                teamId: 'team-anyang-bamkkot',
+                animKey: 0
+            },
+            eventBanner: {
+                visible: false,
+                fadingOut: false,
+                eventId: '',
+                animKey: 0
             },
             sequenceIntervalSeconds: typeof savedBoard?.sequenceIntervalSeconds === 'number' ? savedBoard.sequenceIntervalSeconds : 7,
             bannerAutoHideSeconds: typeof savedBoard?.bannerAutoHideSeconds === 'number' ? savedBoard.bannerAutoHideSeconds : 8,
@@ -920,11 +1149,11 @@
 
         let bannerAutoHideTimer = null;
         let sequenceStepTimer = null;
-        let crossDissolveTimeout = null;
+        let fadeTransitionTimeout = null;
+        let eventFadeTimeout = null;
         let bannerCountdownInterval = null;
         let bannerRemainingSeconds = 0;
 
-        // 순수 대한족구협회(KJA) 공인구 아이콘 (상하단 블루 테두리, 순백색 패널, 중앙 레드 타원형 메인 패널, 중앙 문구 없음)
         function getJokguBallSVG(size = 19) {
             return `
             <svg viewBox="0 0 100 100" width="${size}" height="${size}" class="w-full h-full block">
@@ -976,7 +1205,6 @@
             if (btnSwapIcon) btnSwapIcon.innerHTML = getJokguBallSVG(20);
         }
 
-        // 컨트롤러 -> 오버레이 실시간 동기화 페이로드 생성
         function buildLiveSyncPayload() {
             const topTeamObj = state.savedTeams.find(t => t.id === state.loadedTopTeamId) || state.savedTeams[0];
             const bottomTeamObj = state.savedTeams.find(t => t.id === state.loadedBottomTeamId) || state.savedTeams[1] || state.savedTeams[0];
@@ -991,17 +1219,17 @@
                 activeSet: state.activeSet,
                 serveTeam: state.serveTeam,
                 overlayVisible: state.overlayVisible,
-                topTeam: { ...state.topTeam, color: COLOR_BLUE },
-                bottomTeam: { ...state.bottomTeam, color: COLOR_RED },
+                topTeam: { name: state.topTeam.name, direction: 'up', color: COLOR_RED },
+                bottomTeam: { name: state.bottomTeam.name, direction: 'down', color: COLOR_BLUE },
                 loadedTopTeamId: state.loadedTopTeamId,
                 loadedBottomTeamId: state.loadedBottomTeamId,
                 topRosterPlayers: topTeamObj ? topTeamObj.players : [],
                 bottomRosterPlayers: bottomTeamObj ? bottomTeamObj.players : [],
-                playerBanner: state.playerBanner
+                playerBanner: state.playerBanner,
+                eventBanner: state.eventBanner
             };
         }
 
-        // 수신된 페이로드를 현재 화면(특히 오버레이 창)에 즉시 적용
         function applyIncomingLivePayload(payload) {
             if (!payload || payload.senderId === INSTANCE_SENDER_ID) return;
             if (payload.roomCode && payload.roomCode !== state.roomCode) return;
@@ -1015,11 +1243,12 @@
             if (typeof payload.activeSet === 'number') state.activeSet = payload.activeSet;
             if (payload.serveTeam) state.serveTeam = payload.serveTeam;
             if (typeof payload.overlayVisible === 'boolean') state.overlayVisible = payload.overlayVisible;
-            if (payload.topTeam) state.topTeam = { ...payload.topTeam, color: COLOR_BLUE };
-            if (payload.bottomTeam) state.bottomTeam = { ...payload.bottomTeam, color: COLOR_RED };
+            if (payload.topTeam) state.topTeam = { name: payload.topTeam.name, direction: 'up', color: COLOR_RED };
+            if (payload.bottomTeam) state.bottomTeam = { name: payload.bottomTeam.name, direction: 'down', color: COLOR_BLUE };
             if (payload.loadedTopTeamId) state.loadedTopTeamId = payload.loadedTopTeamId;
             if (payload.loadedBottomTeamId) state.loadedBottomTeamId = payload.loadedBottomTeamId;
             if (payload.playerBanner) state.playerBanner = payload.playerBanner;
+            if (payload.eventBanner) state.eventBanner = payload.eventBanner;
 
             if (Array.isArray(payload.topRosterPlayers)) {
                 const idx = state.savedTeams.findIndex(t => t.id === state.loadedTopTeamId);
@@ -1039,7 +1268,6 @@
             syncOverlayVisibility();
         }
 
-        // 컨트롤 조작 시 로컬 저장 + BroadcastChannel + Firebase 클라우드 동시 전파
         function broadcastLiveOverlayState() {
             if (IS_OVERLAY_ONLY) return;
             const payload = buildLiveSyncPayload();
@@ -1123,10 +1351,10 @@
             showToast('🔗 오버레이 URL이 클립보드에 복사되었습니다.');
         }
 
-        // OBS 브라우저 소스용 순수 오버레이 전용 HTML 파일(jokgu_overlay.html) 즉시 생성 및 다운로드
         function downloadStandaloneOverlayHTML() {
             broadcastLiveOverlayState();
             const docClone = document.documentElement.cloneNode(true);
+            docClone.classList.add('is-overlay-only');
             const headEl = docClone.querySelector('head');
             const injectScript = document.createElement('script');
             const embeddedConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) ? __firebase_config : '';
@@ -1142,7 +1370,7 @@
 
             const bodyEl = docClone.querySelector('body');
             if (bodyEl) {
-                bodyEl.className = 'overlay-only-mode page-obs-transparent text-slate-900';
+                bodyEl.className = 'overlay-only-mode page-obs-transparent text-slate-900 app-ready';
             }
 
             const htmlContent = '<!DOCTYPE html>\n' + docClone.outerHTML;
@@ -1172,7 +1400,6 @@
             document.getElementById('banner-auto-hide-select').value = String(state.bannerAutoHideSeconds);
         }
 
-        // 대회 정보 인라인 편집 모달
         function openHeaderEditModal() {
             document.getElementById('modal-input-tournament').value = state.tournament;
             document.getElementById('modal-input-date').value = state.date;
@@ -1197,13 +1424,12 @@
             showToast('✅ 대회 정보가 수정되었습니다.');
         }
 
-        // 초볼드 V자형 SVG 화살표 생성 (30x21 비례, 외곽선 stroke-width 11.2, 메인 컬러 stroke-width 8.8)
         function getChevronSVG(direction, color) {
             const isUp = (direction === 'up');
             const rotation = isUp ? 'rotate(180 18 12)' : 'rotate(0 18 12)';
             return `
             <svg viewBox="0 0 36 24" class="w-full h-full">
-                <g transform="${rotation}" style="transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                <g transform="${rotation}">
                     <path d="M6.5 6.8 L18 18.2 L29.5 6.8" fill="none" stroke="rgba(0,0,0,0.34)" stroke-width="11.2" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="M6.5 6.8 L18 18.2 L29.5 6.8" fill="none" stroke="${color}" stroke-width="8.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </g>
@@ -1223,25 +1449,55 @@
             }, 1900);
         }
 
-        // 대회명(+날짜) 및 장소 텍스트 길이를 반영해 1~4단 오른쪽 끝단이 1px 오차 없이 수직 정렬되도록 좌측 열(--left-col-w) 산출
+        // 숨김/축소 상태에서도 정확한 원본 텍스트 픽셀 너비를 측정하는 헬퍼
+        function measureExactTextWidth(el, fontSizePx, fontWeight) {
+            if (!el) return 0;
+            const directWidth = Math.ceil(el.scrollWidth);
+            if (directWidth > 0) return directWidth;
+
+            const probe = document.createElement('span');
+            probe.style.cssText = `position:fixed;left:-9999px;top:-9999px;visibility:hidden;white-space:nowrap;font-family:'Pretendard','Noto Sans KR',sans-serif;font-size:${fontSizePx}px;font-weight:${fontWeight};letter-spacing:-0.025em;`;
+            probe.textContent = el.textContent || '';
+            document.body.appendChild(probe);
+            const measured = Math.ceil(probe.getBoundingClientRect().width);
+            probe.remove();
+            return measured;
+        }
+
+        // 장소 문구가 길어질 때 글자 크기를 자동 축소하고 1~4단 우측 끝단 수직 정렬 유지
         function updateLayoutSpacing() {
             const titleEl = document.getElementById('display-title-bar');
             const venueEl = document.getElementById('display-venue');
+            const editBtnEl = document.getElementById('btn-inline-edit-title');
             if (!titleEl || !venueEl) return;
-
-            const chProbe = document.createElement('span');
-            chProbe.style.cssText = 'position:absolute;visibility:hidden;font-size:18px;font-weight:700;white-space:nowrap;';
-            chProbe.textContent = '0';
-            document.body.appendChild(chProbe);
-            const quarterSpaceWidth = Math.ceil(chProbe.getBoundingClientRect().width * 0.25);
-            chProbe.remove();
 
             const setCount = state.sets.length;
             const setsAreaWidth = setCount * 58;
 
-            const venueMinLeftWidth = Math.ceil(venueEl.scrollWidth) + 32 + quarterSpaceWidth;
-            const titleExtraBtnWidth = (!IS_OVERLAY_ONLY && !state.isTransparent && !state.isPanelHidden) ? 34 : 0;
-            const titleTotalRequiredWidth = Math.ceil(titleEl.scrollWidth) + 32 + titleExtraBtnWidth + quarterSpaceWidth;
+            const defaultVenueSize = 18;
+            const minVenueSize = 13;
+            const maxAllowedVenueWidth = 420;
+
+            venueEl.style.fontSize = `${defaultVenueSize}px`;
+            let currentVenueSize = defaultVenueSize;
+            const rawVenueWidth = measureExactTextWidth(venueEl, defaultVenueSize, 700);
+            if (rawVenueWidth > maxAllowedVenueWidth) {
+                currentVenueSize = Math.max(
+                    minVenueSize,
+                    Math.floor(defaultVenueSize * (maxAllowedVenueWidth / rawVenueWidth) * 10) / 10
+                );
+                venueEl.style.fontSize = `${currentVenueSize}px`;
+            }
+
+            const venueTextWidth = measureExactTextWidth(venueEl, currentVenueSize, 700);
+            const titleTextWidth = measureExactTextWidth(titleEl, 20, 700);
+
+            // 2단 좌우 패딩(32px) + 1SET과의 여유 간격(16px) = 48px
+            const venueMinLeftWidth = venueTextWidth + 48;
+
+            const isEditBtnVisible = editBtnEl && !editBtnEl.classList.contains('hidden');
+            const titleExtraBtnWidth = isEditBtnVisible ? (Math.max(28, Math.ceil(editBtnEl.offsetWidth)) + 12) : 0;
+            const titleTotalRequiredWidth = titleTextWidth + 36 + titleExtraBtnWidth;
             const titleMinLeftWidth = Math.max(0, titleTotalRequiredWidth - setsAreaWidth);
 
             const minBaseLeftWidth = 290;
@@ -1250,7 +1506,6 @@
             document.documentElement.style.setProperty('--left-col-w', `${leftColWidth}px`);
         }
 
-        // 양 팀 팀명 폰트 크기 자동 축소 및 동일 최소 크기로 동기화
         function fitTexts() {
             updateLayoutSpacing();
 
@@ -1284,8 +1539,8 @@
         }
 
         function syncControlCardColors() {
-            const topColor = COLOR_BLUE;
-            const bottomColor = COLOR_RED;
+            const topColor = COLOR_RED;
+            const bottomColor = COLOR_BLUE;
 
             document.getElementById('ctrl-top-card').style.borderColor = topColor;
             document.getElementById('ctrl-top-badge').style.backgroundColor = topColor;
@@ -1293,13 +1548,13 @@
             document.getElementById('roster-top-dot').style.backgroundColor = topColor;
 
             const rosterTopCard = document.getElementById('roster-top-card');
-            if (rosterTopCard) rosterTopCard.style.borderColor = 'rgba(56, 81, 181, 0.55)';
+            if (rosterTopCard) rosterTopCard.style.borderColor = 'rgba(201, 55, 37, 0.55)';
             const applyTopBtn = document.getElementById('btn-apply-top-roster');
             if (applyTopBtn) applyTopBtn.style.backgroundColor = topColor;
 
             const topDirLabel = document.getElementById('ctrl-top-dir-label');
-            topDirLabel.textContent = state.topTeam.direction === 'down' ? '▼ 블루 코트' : '▲ 블루 코트';
-            topDirLabel.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#3851B5]/30 text-blue-200';
+            topDirLabel.textContent = '▲ 레드 코트 (상단)';
+            topDirLabel.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#C93725]/30 text-red-200';
 
             document.getElementById('ctrl-bottom-card').style.borderColor = bottomColor;
             document.getElementById('ctrl-bottom-badge').style.backgroundColor = bottomColor;
@@ -1307,16 +1562,40 @@
             document.getElementById('roster-bottom-dot').style.backgroundColor = bottomColor;
 
             const rosterBottomCard = document.getElementById('roster-bottom-card');
-            if (rosterBottomCard) rosterBottomCard.style.borderColor = 'rgba(201, 55, 37, 0.55)';
+            if (rosterBottomCard) rosterBottomCard.style.borderColor = 'rgba(56, 81, 181, 0.55)';
             const applyBottomBtn = document.getElementById('btn-apply-bottom-roster');
             if (applyBottomBtn) applyBottomBtn.style.backgroundColor = bottomColor;
 
             const bottomDirLabel = document.getElementById('ctrl-bottom-dir-label');
-            bottomDirLabel.textContent = state.bottomTeam.direction === 'down' ? '▼ 레드 코트' : '▲ 레드 코트';
-            bottomDirLabel.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#C93725]/30 text-red-200';
+            bottomDirLabel.textContent = '▼ 블루 코트 (하단)';
+            bottomDirLabel.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-[#3851B5]/30 text-blue-200';
         }
 
-        // 양 팀 득점 카드 상단 헤더 중앙의 소형 '세트점수 +/-' 접기/펼치기 토글
+        function syncServeButtonsUI() {
+            const btnTop = document.getElementById('btn-serve-top');
+            const labelTop = document.getElementById('btn-serve-label-top');
+            const btnBottom = document.getElementById('btn-serve-bottom');
+            const labelBottom = document.getElementById('btn-serve-label-bottom');
+
+            if (!btnTop || !labelTop || !btnBottom || !labelBottom) return;
+
+            const isTopActive = state.serveTeam === 'top';
+
+            if (isTopActive) {
+                btnTop.className = 'h-[32px] px-2.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 ring-2 ring-amber-300/60 shadow-md text-[11px] font-black flex items-center gap-1 shrink-0 transition-all';
+                labelTop.textContent = '서브권 활성 ●';
+
+                btnBottom.className = 'h-[32px] px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300/80 text-[11px] font-bold flex items-center gap-1 shrink-0 transition-all';
+                labelBottom.textContent = '서브권 지정';
+            } else {
+                btnTop.className = 'h-[32px] px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300/80 text-[11px] font-bold flex items-center gap-1 shrink-0 transition-all';
+                labelTop.textContent = '서브권 지정';
+
+                btnBottom.className = 'h-[32px] px-2.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 ring-2 ring-amber-300/60 shadow-md text-[11px] font-black flex items-center gap-1 shrink-0 transition-all';
+                labelBottom.textContent = '서브권 활성 ●';
+            }
+        }
+
         function toggleTeamSetEditor(team) {
             if (team === 'top') {
                 state.isTopSetEditorOpen = !state.isTopSetEditorOpen;
@@ -1356,10 +1635,11 @@
             }
         }
 
-        // 전체 스코어보드 및 컨트롤 UI 렌더링
         function render(popTarget = null) {
-            state.topTeam.color = COLOR_BLUE;
-            state.bottomTeam.color = COLOR_RED;
+            state.topTeam.direction = 'up';
+            state.topTeam.color = COLOR_RED;
+            state.bottomTeam.direction = 'down';
+            state.bottomTeam.color = COLOR_BLUE;
 
             const titleText = state.date.trim()
                 ? `${state.tournament} (${state.date.trim()})`
@@ -1379,8 +1659,8 @@
             document.getElementById('display-top-name').textContent = state.topTeam.name || '팀 A';
             document.getElementById('display-bottom-name').textContent = state.bottomTeam.name || '팀 B';
 
-            document.getElementById('top-arrow-container').innerHTML = getChevronSVG(state.topTeam.direction, COLOR_BLUE);
-            document.getElementById('bottom-arrow-container').innerHTML = getChevronSVG(state.bottomTeam.direction, COLOR_RED);
+            document.getElementById('top-arrow-container').innerHTML = getChevronSVG('up', COLOR_RED);
+            document.getElementById('bottom-arrow-container').innerHTML = getChevronSVG('down', COLOR_BLUE);
 
             const serveTopEl = document.getElementById('serve-badge-top');
             const serveBottomEl = document.getElementById('serve-badge-bottom');
@@ -1433,11 +1713,18 @@
 
             if (!IS_OVERLAY_ONLY) {
                 syncControlCardColors();
+                syncServeButtonsUI();
                 syncTeamSetEditorUI();
 
                 document.querySelectorAll('.active-set-label').forEach(el => {
                     el.textContent = `${state.activeSet + 1}SET`;
                 });
+
+                const activeSetObj = state.sets[state.activeSet] || { top: 0, bottom: 0 };
+                const btnTopScoreEl = document.getElementById('btn-top-current-score');
+                const btnBottomScoreEl = document.getElementById('btn-bottom-current-score');
+                if (btnTopScoreEl) btnTopScoreEl.textContent = activeSetObj.top;
+                if (btnBottomScoreEl) btnBottomScoreEl.textContent = activeSetObj.bottom;
 
                 const setTabsEl = document.getElementById('ctrl-set-tabs');
                 setTabsEl.innerHTML = state.sets.map((_, idx) => {
@@ -1470,13 +1757,14 @@
                 document.getElementById('ctrl-bottom-sets-grid').innerHTML = buildMiniSetInputs('bottom');
 
                 renderRosterSection();
+                renderEventButtonsGrid();
             }
 
-            requestAnimationFrame(fitTexts);
+            fitTexts();
         }
 
         // =====================================================================
-        // 4. 팀 로스터 저장/편집 & 하단 별도 선수 소개 / 최대 2줄 팀 라인업 배너 제어
+        // 4. 팀 로스터 & 하단 선수 소개 / 이벤트 배너 (푸시 인 & 페이드 아웃 애니메이션)
         // =====================================================================
         function clearAllBannerTimers() {
             if (bannerAutoHideTimer) {
@@ -1487,9 +1775,9 @@
                 clearTimeout(sequenceStepTimer);
                 sequenceStepTimer = null;
             }
-            if (crossDissolveTimeout) {
-                clearTimeout(crossDissolveTimeout);
-                crossDissolveTimeout = null;
+            if (fadeTransitionTimeout) {
+                clearTimeout(fadeTransitionTimeout);
+                fadeTransitionTimeout = null;
             }
             if (bannerCountdownInterval) {
                 clearInterval(bannerCountdownInterval);
@@ -1542,12 +1830,12 @@
                 if (stepBtn) stepBtn.classList.remove('hidden');
                 const remain = bannerRemainingSeconds > 0 ? bannerRemainingSeconds : state.sequenceIntervalSeconds;
                 if (pb.sequenceStep === 0) {
-                    seqStatusText.textContent = `1/2 [${topName}] 송출 중 → ${remain}초 후 [${bottomName}] 디졸브 전환`;
+                    seqStatusText.textContent = `1/2 [${topName}] 푸시인 송출 중 → ${remain}초 후 페이드아웃 & [${bottomName}] 푸시인`;
                 } else {
                     const hideRemain = bannerRemainingSeconds > 0 ? bannerRemainingSeconds : state.bannerAutoHideSeconds;
                     seqStatusText.textContent = state.bannerAutoHideSeconds > 0
-                        ? `2/2 [${bottomName}] 송출 중 → ${hideRemain}초 후 자동 내림`
-                        : `2/2 [${bottomName}] 송출 중 → ${remain}초 후 [${topName}] 순환 전환`;
+                        ? `2/2 [${bottomName}] 푸시인 송출 중 → ${hideRemain}초 후 페이드아웃`
+                        : `2/2 [${bottomName}] 푸시인 송출 중 → ${remain}초 후 [${topName}] 순환 전환`;
                 }
             } else if (pb.mode === 'team') {
                 seqStatusBar.classList.remove('hidden');
@@ -1555,7 +1843,7 @@
                 const activeTeamName = pb.slot === 'bottom' ? bottomName : topName;
                 if (state.bannerAutoHideSeconds > 0) {
                     const hideRemain = bannerRemainingSeconds > 0 ? bannerRemainingSeconds : state.bannerAutoHideSeconds;
-                    seqStatusText.textContent = `📢 [${activeTeamName}] 전체 명단 송출 중 → ${hideRemain}초 후 자동 내림`;
+                    seqStatusText.textContent = `📢 [${activeTeamName}] 전체 명단 송출 중 → ${hideRemain}초 후 페이드아웃`;
                 } else {
                     seqStatusText.textContent = `📢 [${activeTeamName}] 전체 명단 송출 중 (수동 유지)`;
                 }
@@ -1604,7 +1892,6 @@
             }
         }
 
-        // 팀 로스터 불러오기 드롭다운, 전체 라인업 출력 버튼 및 소속 선수 버튼 목록 렌더링
         function renderRosterSection() {
             const topSelect = document.getElementById('select-top-roster');
             const bottomSelect = document.getElementById('select-bottom-roster');
@@ -1654,7 +1941,7 @@
                     topLineupBtn.style.borderColor = '#6ee7b7';
                     topLineupBtn.className = 'w-full min-h-[44px] px-3 rounded-xl border-2 text-white text-xs sm:text-sm font-black shadow-lg ring-2 ring-emerald-400/40 transition-all flex items-center justify-center gap-1.5';
                 } else {
-                    topLineupBtn.style.backgroundColor = COLOR_BLUE;
+                    topLineupBtn.style.backgroundColor = COLOR_RED;
                     topLineupBtn.style.borderColor = 'rgba(255, 255, 255, 0.24)';
                     topLineupBtn.className = 'w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5';
                 }
@@ -1672,7 +1959,7 @@
                     bottomLineupBtn.style.borderColor = '#6ee7b7';
                     bottomLineupBtn.className = 'w-full min-h-[44px] px-3 rounded-xl border-2 text-white text-xs sm:text-sm font-black shadow-lg ring-2 ring-emerald-400/40 transition-all flex items-center justify-center gap-1.5';
                 } else {
-                    bottomLineupBtn.style.backgroundColor = COLOR_RED;
+                    bottomLineupBtn.style.backgroundColor = COLOR_BLUE;
                     bottomLineupBtn.style.borderColor = 'rgba(255, 255, 255, 0.24)';
                     bottomLineupBtn.className = 'w-full min-h-[44px] px-3 rounded-xl hover:brightness-110 active:scale-[0.98] border text-white text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5';
                 }
@@ -1683,11 +1970,11 @@
 
             if (seqBtn && seqBtnText) {
                 seqBtnText.textContent = isSequenceLive
-                    ? '1단 순차 디졸브 송출중 (눌러서 중지)'
-                    : '양 팀 전체 선수 명단 1단 순차 디졸브 출력';
+                    ? '순차 출력 송출중 (눌러서 중지)'
+                    : '양 팀 전체 선수 명단 순차 출력 (푸시인 · 페이드아웃)';
                 seqBtn.className = isSequenceLive
                     ? 'flex-1 min-h-[48px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-300 text-white text-sm font-black shadow-lg ring-2 ring-emerald-400/40 transition-all flex items-center justify-center gap-2'
-                    : 'flex-1 min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-[#0F2350] via-indigo-800 to-[#9b2416] hover:brightness-110 active:scale-[0.99] border border-white/15 text-white text-sm font-black shadow-md transition-all flex items-center justify-center gap-2';
+                    : 'flex-1 min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-[#9b2416] via-indigo-800 to-[#0F2350] hover:brightness-110 active:scale-[0.99] border border-white/15 text-white text-sm font-black shadow-md transition-all flex items-center justify-center gap-2';
             }
 
             updateBannerStatusBar();
@@ -1722,6 +2009,112 @@
             }
         }
 
+        // 이벤트 오버레이 컨트롤 버튼 렌더링
+        function renderEventButtonsGrid() {
+            const gridEl = document.getElementById('event-buttons-grid');
+            if (!gridEl) return;
+
+            const eb = state.eventBanner;
+            gridEl.innerHTML = EVENT_OVERLAY_ITEMS.map(item => {
+                const isActive = eb.visible && !eb.fadingOut && eb.eventId === item.id;
+                const activeRing = isActive
+                    ? 'ring-2 ring-amber-300 border-amber-200 brightness-110 scale-[1.01]'
+                    : 'border-white/15 hover:brightness-110';
+
+                return `
+                    <button type="button" onclick="toggleEventBanner('${item.id}')" style="background: ${item.gradient};" class="min-h-[46px] px-3 py-2 rounded-xl border ${activeRing} text-white font-black text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-between gap-2">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <span style="background-color: ${item.badgeBg}; color: ${item.badgeText};" class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-xs">
+                                ${getEventGraphicSVG(item.iconType)}
+                            </span>
+                            <span class="truncate">${item.label}</span>
+                        </span>
+                        <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-black/35 text-white/90 shrink-0">
+                            ${isActive ? '송출중' : '출력'}
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // 이벤트 오버레이 토글 (푸시인 등장 / 재클릭 시 페이드아웃)
+        function toggleEventBanner(eventId) {
+            const item = EVENT_OVERLAY_ITEMS.find(e => e.id === eventId);
+            if (!item) return;
+
+            if (eventFadeTimeout) {
+                clearTimeout(eventFadeTimeout);
+                eventFadeTimeout = null;
+            }
+
+            if (state.eventBanner.visible && !state.eventBanner.fadingOut && state.eventBanner.eventId === eventId) {
+                hideEventBanner();
+                return;
+            }
+
+            state.eventBanner = {
+                visible: true,
+                fadingOut: false,
+                eventId: item.id,
+                animKey: Date.now()
+            };
+
+            renderEventButtonsGrid();
+            syncOverlayVisibility();
+            broadcastLiveOverlayState();
+            showToast(`🎬 '${item.label}' 이벤트 오버레이 출력`);
+        }
+
+        function hideEventBanner() {
+            if (eventFadeTimeout) {
+                clearTimeout(eventFadeTimeout);
+                eventFadeTimeout = null;
+            }
+
+            if (state.eventBanner.visible) {
+                state.eventBanner.fadingOut = true;
+                renderEventButtonsGrid();
+                syncOverlayVisibility();
+                broadcastLiveOverlayState();
+
+                eventFadeTimeout = setTimeout(() => {
+                    state.eventBanner.visible = false;
+                    state.eventBanner.fadingOut = false;
+                    state.eventBanner.eventId = '';
+                    renderEventButtonsGrid();
+                    syncOverlayVisibility();
+                    broadcastLiveOverlayState();
+                }, 450);
+            } else {
+                state.eventBanner.visible = false;
+                state.eventBanner.fadingOut = false;
+                state.eventBanner.eventId = '';
+                renderEventButtonsGrid();
+                syncOverlayVisibility();
+                broadcastLiveOverlayState();
+            }
+        }
+
+        function buildEventBannerHTML(eventId, isFadingOut = false) {
+            const item = EVENT_OVERLAY_ITEMS.find(e => e.id === eventId) || EVENT_OVERLAY_ITEMS[0];
+            const animClass = isFadingOut ? 'anim-fade-out' : 'anim-push-in';
+
+            return `
+                <div style="background: ${item.gradient};" class="event-third-bar ${animClass}">
+                    <div style="background-color: ${item.accentColor};" class="w-[8px] shrink-0"></div>
+                    <div class="px-3.5 flex items-center gap-2.5 shrink-0">
+                        <span style="background-color: ${item.badgeBg}; color: ${item.badgeText};" class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
+                            ${getEventGraphicSVG(item.iconType)}
+                        </span>
+                        <span class="text-[20px] font-black text-white tracking-tight whitespace-nowrap leading-none">${item.label}</span>
+                    </div>
+                    <div class="bg-black/30 px-3 flex items-center shrink-0 border-l border-white/15">
+                        <span class="text-[11.5px] font-extrabold tracking-wider text-amber-200 whitespace-nowrap leading-none">${item.subLabel}</span>
+                    </div>
+                </div>
+            `;
+        }
+
         function applySavedTeamToSlot(slot) {
             const selectEl = document.getElementById(slot === 'top' ? 'select-top-roster' : 'select-bottom-roster');
             const selectedId = selectEl.value;
@@ -1744,7 +2137,6 @@
             showToast(`✅ '${teamObj.name}' 팀과 선수 명단을 불러왔습니다.`);
         }
 
-        // [모드 A] 개별 선수 1명 1단 배너 노출/해제 토글
         function togglePlayerBanner(slot, teamId, playerId) {
             const teamObj = state.savedTeams.find(t => t.id === teamId);
             if (!teamObj) return;
@@ -1761,6 +2153,7 @@
 
             state.playerBanner = {
                 visible: true,
+                fadingOut: false,
                 mode: 'single',
                 slot: slot,
                 sequenceStep: 0,
@@ -1769,7 +2162,8 @@
                 playerName: playerObj.name,
                 position: playerObj.position,
                 note: playerObj.note || '',
-                playerId: playerObj.id
+                playerId: playerObj.id,
+                animKey: Date.now()
             };
 
             scheduleBannerAutoHide();
@@ -1779,7 +2173,6 @@
             showToast(`🎙️ 개별 선수 송출: ${playerObj.position} · ${playerObj.name}`);
         }
 
-        // [모드 B] 단일 팀 전체 선수 명단 배너 노출/해제 토글
         function toggleTeamLineupBanner(slot) {
             const teamId = (slot === 'top') ? state.loadedTopTeamId : state.loadedBottomTeamId;
             const teamObj = state.savedTeams.find(t => t.id === teamId);
@@ -1798,6 +2191,7 @@
 
             state.playerBanner = {
                 visible: true,
+                fadingOut: false,
                 mode: 'team',
                 slot: slot,
                 sequenceStep: 0,
@@ -1806,7 +2200,8 @@
                 playerName: '',
                 position: '',
                 note: '',
-                playerId: ''
+                playerId: '',
+                animKey: Date.now()
             };
 
             scheduleBannerAutoHide();
@@ -1816,7 +2211,6 @@
             showToast(`📢 '${slotTeamName || teamObj.name}' 전체 선수 명단(${teamObj.players.length}명) 송출`);
         }
 
-        // [모드 C] 양 팀 전체 선수 명단 1단 순차 크로스 디졸브 출력 시작/중지
         function toggleSequentialTeamsLineupBanner() {
             if (state.playerBanner.visible && state.playerBanner.mode === 'sequence') {
                 hidePlayerBanner();
@@ -1827,16 +2221,18 @@
             state.playerBanner = {
                 ...state.playerBanner,
                 visible: true,
+                fadingOut: false,
                 mode: 'sequence',
                 slot: 'top',
-                sequenceStep: 0
+                sequenceStep: 0,
+                animKey: Date.now()
             };
 
             renderRosterSection();
             syncOverlayVisibility();
             broadcastLiveOverlayState();
             scheduleNextSequenceTransition();
-            showToast(`📢 1단 순차 디졸브 시작: [${state.topTeam.name || '상단 팀'}] → [${state.bottomTeam.name || '하단 팀'}]`);
+            showToast(`📢 순차 출력 시작 (푸시인 → 페이드아웃): [${state.topTeam.name || '상단 팀'}] → [${state.bottomTeam.name || '하단 팀'}]`);
         }
 
         function scheduleNextSequenceTransition() {
@@ -1851,7 +2247,7 @@
                 startBannerCountdown(waitSec);
                 sequenceStepTimer = setTimeout(() => {
                     if (!state.playerBanner.visible || state.playerBanner.mode !== 'sequence') return;
-                    crossDissolveToSequenceStep(1);
+                    fadeOutThenPushInStep(1);
                 }, waitSec * 1000);
             } else {
                 if (state.bannerAutoHideSeconds > 0) {
@@ -1860,14 +2256,14 @@
                     sequenceStepTimer = setTimeout(() => {
                         if (!state.playerBanner.visible || state.playerBanner.mode !== 'sequence') return;
                         hidePlayerBanner();
-                        showToast(`✅ 양 팀 전체 선수 명단 순차 소개 완료 (${hideSec}초 후 자동 내림)`);
+                        showToast(`✅ 양 팀 전체 선수 명단 순차 소개 완료 (${hideSec}초 후 페이드아웃)`);
                     }, hideSec * 1000);
                 } else {
                     const loopSec = Math.max(2, state.sequenceIntervalSeconds);
                     startBannerCountdown(loopSec);
                     sequenceStepTimer = setTimeout(() => {
                         if (!state.playerBanner.visible || state.playerBanner.mode !== 'sequence') return;
-                        crossDissolveToSequenceStep(0);
+                        fadeOutThenPushInStep(0);
                     }, loopSec * 1000);
                 }
             }
@@ -1880,59 +2276,61 @@
                 sequenceStepTimer = null;
             }
             const nextStep = state.playerBanner.sequenceStep === 0 ? 1 : 0;
-            crossDissolveToSequenceStep(nextStep);
+            fadeOutThenPushInStep(nextStep);
         }
 
-        function crossDissolveToSequenceStep(nextStep) {
-            const bannerEl = document.getElementById('player-banner-wrapper');
-            const innerBar = bannerEl ? bannerEl.querySelector('.lower-third-bar') : null;
+        function fadeOutThenPushInStep(nextStep) {
+            state.playerBanner.fadingOut = true;
+            syncOverlayVisibility();
+            broadcastLiveOverlayState();
 
-            if (innerBar) {
-                innerBar.classList.add('bar-cross-dissolve-out');
-            }
-
-            if (crossDissolveTimeout) clearTimeout(crossDissolveTimeout);
-            crossDissolveTimeout = setTimeout(() => {
+            if (fadeTransitionTimeout) clearTimeout(fadeTransitionTimeout);
+            fadeTransitionTimeout = setTimeout(() => {
                 if (!state.playerBanner.visible || state.playerBanner.mode !== 'sequence') return;
 
                 state.playerBanner.sequenceStep = nextStep;
                 state.playerBanner.slot = (nextStep === 1) ? 'bottom' : 'top';
+                state.playerBanner.fadingOut = false;
+                state.playerBanner.animKey = Date.now();
 
                 renderRosterSection();
                 syncOverlayVisibility();
                 broadcastLiveOverlayState();
 
-                const freshInnerBar = document.getElementById('player-banner-wrapper')?.querySelector('.lower-third-bar');
-                if (freshInnerBar) {
-                    freshInnerBar.style.opacity = '0';
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            freshInnerBar.style.opacity = '1';
-                        });
-                    });
-                }
-
                 scheduleNextSequenceTransition();
-            }, 420);
+            }, 440);
         }
 
         function hidePlayerBanner() {
             clearAllBannerTimers();
-            state.playerBanner.visible = false;
-            renderRosterSection();
-            syncOverlayVisibility();
-            broadcastLiveOverlayState();
+            if (state.playerBanner.visible) {
+                state.playerBanner.fadingOut = true;
+                syncOverlayVisibility();
+                broadcastLiveOverlayState();
+
+                fadeTransitionTimeout = setTimeout(() => {
+                    state.playerBanner.visible = false;
+                    state.playerBanner.fadingOut = false;
+                    renderRosterSection();
+                    syncOverlayVisibility();
+                    broadcastLiveOverlayState();
+                }, 440);
+            } else {
+                state.playerBanner.visible = false;
+                state.playerBanner.fadingOut = false;
+                renderRosterSection();
+                syncOverlayVisibility();
+                broadcastLiveOverlayState();
+            }
         }
 
-        // 단일 팀 전체 선수 명단 배너 HTML 생성 (4명 이하 1줄, 5명 이상 정확히 2줄 균형 분할 및 줄바꿈 차단)
-        function buildTeamLineupBarHTML(slot) {
+        function buildTeamLineupBarHTML(slot, isFadingOut = false) {
             const isBottom = (slot === 'bottom');
             const teamId = isBottom ? state.loadedBottomTeamId : state.loadedTopTeamId;
             const teamObj = state.savedTeams.find(t => t.id === teamId) || state.savedTeams[0];
-            const teamState = isBottom ? state.bottomTeam : state.topTeam;
             const teamName = (isBottom ? state.bottomTeam.name : state.topTeam.name) || (teamObj ? teamObj.name : (isBottom ? '하단 팀' : '상단 팀'));
-            const teamColor = isBottom ? COLOR_RED : COLOR_BLUE;
-            const teamDirection = teamState.direction;
+            const teamColor = isBottom ? COLOR_BLUE : COLOR_RED;
+            const teamDirection = isBottom ? 'down' : 'up';
             const arrowSVG = getChevronSVG(teamDirection, teamColor);
             const players = (teamObj && teamObj.players) ? teamObj.players : [];
 
@@ -1973,9 +2371,10 @@
 
             const barMinHeightClass = isTwoRows ? 'min-h-[64px]' : 'h-[44px]';
             const playersPaddingClass = isTwoRows ? 'py-1.5 px-3' : 'px-3';
+            const animClass = isFadingOut ? 'anim-fade-out' : 'anim-push-in';
 
             return `
-                <div class="lower-third-bar ${barMinHeightClass}">
+                <div class="lower-third-bar ${animClass} ${barMinHeightClass}">
                     <div style="background-color: ${teamColor};" class="w-[8px] shrink-0 self-stretch"></div>
                     <div class="bg-[#FFFFFF] text-[#111111] px-3.5 flex items-center gap-2 shrink-0 self-stretch">
                         <div class="shrink-0 w-[26px] h-[18px] flex items-center justify-center">${arrowSVG}</div>
@@ -2169,9 +2568,6 @@
             showToast(`🗑️ '${deletedName}' 팀이 삭제되었습니다.`);
         }
 
-        // =====================================================================
-        // 5. 득점 / 세트 / 진영 / 서브권 / 자막 ON·OFF 이벤트 핸들러
-        // =====================================================================
         function addSet() {
             if (state.sets.length >= 9) {
                 showToast('⚠️ 최대 9세트까지 추가할 수 있습니다.');
@@ -2251,20 +2647,31 @@
             showToast(`🏐 ${name} 서브권`);
         }
 
-        // 진영 교체: 팀 위치·고정 팀색상(상단 블루 #3851B5, 하단 레드 #C93725)·점수·서브권은 유지하고 화살표 방향(▲ ↔ ▼)만 전환
         function toggleSides() {
-            state.topTeam.color = COLOR_BLUE;
-            state.bottomTeam.color = COLOR_RED;
+            const tempName = state.topTeam.name;
+            state.topTeam.name = state.bottomTeam.name;
+            state.bottomTeam.name = tempName;
 
-            state.topTeam.direction = (state.topTeam.direction === 'up') ? 'down' : 'up';
-            state.bottomTeam.direction = (state.bottomTeam.direction === 'down') ? 'up' : 'down';
+            const tempRosterId = state.loadedTopTeamId;
+            state.loadedTopTeamId = state.loadedBottomTeamId;
+            state.loadedBottomTeamId = tempRosterId;
+
+            state.sets = state.sets.map(s => ({
+                top: s.bottom,
+                bottom: s.top
+            }));
+
+            state.serveTeam = (state.serveTeam === 'top') ? 'bottom' : 'top';
+
+            if (!IS_OVERLAY_ONLY) {
+                document.getElementById('input-top-name').value = state.topTeam.name;
+                document.getElementById('input-bottom-name').value = state.bottomTeam.name;
+            }
 
             render();
             syncOverlayVisibility();
             persistLocalState();
-            const topArrow = state.topTeam.direction === 'up' ? '▲' : '▼';
-            const bottomArrow = state.bottomTeam.direction === 'up' ? '▲' : '▼';
-            showToast(`⇅ 진영 교체: 상단 블루(${topArrow}) / 하단 레드(${bottomArrow}) 화살표가 전환되었습니다.`);
+            showToast(`⇅ 진영 교체: 화살표 고정 · 팀명(${state.topTeam.name} ↔ ${state.bottomTeam.name}) 및 점수가 반전되었습니다.`);
         }
 
         function askResetConfirm() {
@@ -2283,15 +2690,34 @@
             state.sets = [{ top: 0, bottom: 0 }];
             state.activeSet = 0;
             state.serveTeam = 'top';
-            state.topTeam.direction = 'down';
-            state.topTeam.color = COLOR_BLUE;
-            state.bottomTeam.direction = 'up';
-            state.bottomTeam.color = COLOR_RED;
+            state.topTeam.direction = 'up';
+            state.topTeam.color = COLOR_RED;
+            state.bottomTeam.direction = 'down';
+            state.bottomTeam.color = COLOR_BLUE;
             cancelResetConfirm();
             render();
             syncOverlayVisibility();
             persistLocalState();
-            showToast('🔄 경기가 초기화되어 1세트 0 : 0 (상단 ▼블루 / 하단 ▲레드)으로 복귀했습니다.');
+            showToast('🔄 점수 초기화 완료: 1세트 0 : 0 (상단 ▲레드 / 하단 ▼블루)으로 복귀했습니다.');
+        }
+
+        function togglePreviewCollapse() {
+            state.isPreviewCollapsed = !state.isPreviewCollapsed;
+            const wrapper = document.getElementById('preview-wrapper');
+            const icon = document.getElementById('icon-preview-collapse');
+            const text = document.getElementById('text-preview-collapse');
+
+            if (state.isPreviewCollapsed) {
+                wrapper.classList.add('hidden');
+                icon.textContent = '🔽';
+                text.textContent = '미리보기 보기';
+            } else {
+                wrapper.classList.remove('hidden');
+                icon.textContent = '🔼';
+                text.textContent = '미리보기 접기';
+                fitTexts();
+                syncOverlayVisibility();
+            }
         }
 
         function syncViewModes() {
@@ -2333,18 +2759,17 @@
             syncOverlayVisibility();
         }
 
-        // 자막 송출 ON/OFF 및 하단 별도 배너(개별 선수 / 단일 팀 전체 1~2줄 / 양 팀 1단 순차 디졸브) 동기화
         function syncOverlayVisibility() {
             const cardEl = document.getElementById('scoreboard-card');
             const scaleBoxEl = document.getElementById('scoreboard-scale-box');
             const bannerEl = document.getElementById('player-banner-wrapper');
-            const previewBadgeEl = document.getElementById('preview-off-badge');
+            const eventBannerEl = document.getElementById('event-banner-wrapper');
             const topBtn = document.getElementById('top-overlay-toggle-btn');
             const topIcon = document.getElementById('top-overlay-toggle-icon');
             const topText = document.getElementById('top-overlay-toggle-text');
 
             const scaleRatio = IS_OVERLAY_ONLY ? 1 : (state.scale / 100);
-            const isLiveOutputMode = (IS_OVERLAY_ONLY || state.isTransparent || state.isPanelHidden);
+            const isLiveCleanOutput = (IS_OVERLAY_ONLY || state.isTransparent || state.isPanelHidden);
 
             if (scaleBoxEl && cardEl) {
                 const baseCardHeight = 148;
@@ -2352,34 +2777,36 @@
                 cardEl.style.marginBottom = IS_OVERLAY_ONLY ? '0px' : `${scaledCardHeight - baseCardHeight}px`;
             }
 
-            // 1. 상단 스코어보드 순수 디졸브 처리
             cardEl.classList.remove('overlay-on', 'overlay-off-preview', 'overlay-off-live');
             cardEl.style.transform = IS_OVERLAY_ONLY ? 'none' : `scale(${scaleRatio})`;
             if (IS_OVERLAY_ONLY) {
                 cardEl.style.transformOrigin = 'top left';
+                scaleBoxEl.style.position = 'fixed';
+                scaleBoxEl.style.left = '24px';
+                scaleBoxEl.style.top = '24px';
             }
 
             if (state.overlayVisible) {
                 cardEl.classList.add('overlay-on');
-                previewBadgeEl.classList.remove('opacity-100');
-                previewBadgeEl.classList.add('opacity-0');
-
+                if (IS_OVERLAY_ONLY) {
+                    scaleBoxEl.style.display = 'inline-flex';
+                    scaleBoxEl.style.visibility = 'visible';
+                }
                 if (topBtn && topIcon && topText) {
                     topBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-md transition-all flex items-center gap-1.5';
                     topIcon.textContent = '📺';
                     topText.textContent = '자막 송출 ON';
                 }
             } else {
-                if (isLiveOutputMode) {
+                if (isLiveCleanOutput) {
                     cardEl.classList.add('overlay-off-live');
-                    previewBadgeEl.classList.remove('opacity-100');
-                    previewBadgeEl.classList.add('opacity-0');
+                    if (IS_OVERLAY_ONLY) {
+                        scaleBoxEl.style.display = 'inline-flex';
+                        scaleBoxEl.style.visibility = 'hidden';
+                    }
                 } else {
                     cardEl.classList.add('overlay-off-preview');
-                    previewBadgeEl.classList.remove('opacity-0');
-                    previewBadgeEl.classList.add('opacity-100');
                 }
-
                 if (topBtn && topIcon && topText) {
                     topBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black bg-slate-700/80 hover:bg-slate-600 active:scale-95 text-amber-300 border border-amber-500/50 shadow-md transition-all flex items-center gap-1.5';
                     topIcon.textContent = '🔇';
@@ -2387,26 +2814,29 @@
                 }
             }
 
-            // 2. 하단 별도 배너 내용 렌더링 (sequence / team / single)
+            fitTexts();
+
             const pb = state.playerBanner;
+            const isFading = Boolean(pb.fadingOut);
+
             if (pb.mode === 'sequence') {
                 const activeSlot = pb.sequenceStep === 1 ? 'bottom' : 'top';
-                bannerEl.innerHTML = buildTeamLineupBarHTML(activeSlot);
+                bannerEl.innerHTML = buildTeamLineupBarHTML(activeSlot, isFading);
             } else if (pb.mode === 'team') {
-                bannerEl.innerHTML = buildTeamLineupBarHTML(pb.slot || 'top');
+                bannerEl.innerHTML = buildTeamLineupBarHTML(pb.slot || 'top', isFading);
             } else {
                 const isBottomSlot = (pb.slot === 'bottom');
-                const slotTeamState = isBottomSlot ? state.bottomTeam : state.topTeam;
-                const slotTeamColor = isBottomSlot ? COLOR_RED : COLOR_BLUE;
-                const slotTeamDirection = slotTeamState.direction;
+                const slotTeamColor = isBottomSlot ? COLOR_BLUE : COLOR_RED;
+                const slotTeamDirection = isBottomSlot ? 'down' : 'up';
                 const arrowSVG = getChevronSVG(slotTeamDirection, slotTeamColor);
                 const liveTeamName = isBottomSlot ? (state.bottomTeam.name || pb.teamName) : (state.topTeam.name || pb.teamName);
                 const noteHTML = pb.note
                     ? `<span class="text-[12.5px] font-bold text-slate-500 whitespace-nowrap leading-none">${pb.note}</span>`
                     : '';
+                const animClass = isFading ? 'anim-fade-out' : 'anim-push-in';
 
                 bannerEl.innerHTML = `
-                    <div class="lower-third-bar h-[44px]">
+                    <div class="lower-third-bar ${animClass} h-[44px]">
                         <div style="background-color: ${slotTeamColor};" class="w-[8px] shrink-0"></div>
                         <div class="bg-[#FFFFFF] text-[#111111] px-3.5 flex items-center gap-2 shrink-0">
                             <div class="shrink-0 w-[26px] h-[18px] flex items-center justify-center">${arrowSVG}</div>
@@ -2423,22 +2853,24 @@
                 `;
             }
 
-            // 3. 하단 배너 순수 디졸브 상태 반영 및 화면 너비 초과 시 2줄 유지 자동 스케일 피팅(Auto-Fit)
-            bannerEl.classList.remove('banner-on', 'banner-off-preview', 'banner-off-live');
+            bannerEl.classList.remove('banner-on', 'banner-off');
             const renderedCard = bannerEl.querySelector('.lower-third-bar');
             const naturalBannerWidth = renderedCard ? renderedCard.offsetWidth : 0;
             const naturalBannerHeight = renderedCard ? Math.max(42, renderedCard.offsetHeight) : 44;
 
             if (IS_OVERLAY_ONLY) {
+                bannerEl.style.display = pb.visible ? 'inline-flex' : 'none';
                 const maxOverlayWidth = Math.max(320, window.innerWidth - 48);
                 const autoFitScale = (naturalBannerWidth > maxOverlayWidth)
                     ? Math.max(0.45, Math.floor((maxOverlayWidth / naturalBannerWidth) * 1000) / 1000)
                     : 1;
-                bannerEl.style.transformOrigin = 'bottom left';
-                bannerEl.style.transform = autoFitScale < 1 ? `scale(${autoFitScale})` : 'none';
                 bannerEl.style.position = 'fixed';
-                bannerEl.style.left = '24px';
-                bannerEl.style.bottom = '24px';
+                bannerEl.style.left = '50%';
+                bannerEl.style.bottom = '112px';
+                bannerEl.style.transformOrigin = 'bottom center';
+                bannerEl.style.transform = autoFitScale < 1
+                    ? `translateX(-50%) scale(${autoFitScale})`
+                    : 'translateX(-50%)';
                 bannerEl.style.marginTop = '0px';
             } else {
                 const maxPreviewWidth = Math.max(280, window.innerWidth - 24);
@@ -2453,10 +2885,51 @@
 
             if (pb.visible) {
                 bannerEl.classList.add('banner-on');
-            } else if (isLiveOutputMode) {
-                bannerEl.classList.add('banner-off-live');
             } else {
-                bannerEl.classList.add('banner-off-preview');
+                bannerEl.classList.add('banner-off');
+            }
+
+            // 4. 이벤트 오버레이 배너 (선수 소개와 동일한 화면 중앙 하단 한 줄 위쪽 위치)
+            if (eventBannerEl) {
+                const eb = state.eventBanner;
+                const isEventFading = Boolean(eb.fadingOut);
+                eventBannerEl.innerHTML = eb.visible ? buildEventBannerHTML(eb.eventId, isEventFading) : '';
+                eventBannerEl.classList.remove('banner-on', 'banner-off');
+
+                const renderedEventCard = eventBannerEl.querySelector('.event-third-bar');
+                const naturalEventWidth = renderedEventCard ? renderedEventCard.offsetWidth : 0;
+                const naturalEventHeight = renderedEventCard ? Math.max(46, renderedEventCard.offsetHeight) : 48;
+
+                if (IS_OVERLAY_ONLY) {
+                    eventBannerEl.style.display = eb.visible ? 'inline-flex' : 'none';
+                    const maxOverlayWidth = Math.max(320, window.innerWidth - 48);
+                    const autoFitEventScale = (naturalEventWidth > maxOverlayWidth)
+                        ? Math.max(0.45, Math.floor((maxOverlayWidth / naturalEventWidth) * 1000) / 1000)
+                        : 1;
+                    eventBannerEl.style.position = 'fixed';
+                    eventBannerEl.style.left = '50%';
+                    eventBannerEl.style.bottom = '72px';
+                    eventBannerEl.style.transformOrigin = 'bottom center';
+                    eventBannerEl.style.transform = autoFitEventScale < 1
+                        ? `translateX(-50%) scale(${autoFitEventScale})`
+                        : 'translateX(-50%)';
+                    eventBannerEl.style.marginTop = '0px';
+                } else {
+                    const maxPreviewWidth = Math.max(280, window.innerWidth - 24);
+                    const maxAllowedEventScale = naturalEventWidth > 0 ? (maxPreviewWidth / naturalEventWidth) : scaleRatio;
+                    const effectiveEventScale = Math.min(scaleRatio, maxAllowedEventScale);
+                    const scaledEventHeight = Math.round(naturalEventHeight * effectiveEventScale);
+
+                    eventBannerEl.style.transformOrigin = 'bottom center';
+                    eventBannerEl.style.transform = `scale(${effectiveEventScale})`;
+                    eventBannerEl.style.marginTop = `${scaledEventHeight - naturalEventHeight}px`;
+                }
+
+                if (eb.visible) {
+                    eventBannerEl.classList.add('banner-on');
+                } else {
+                    eventBannerEl.classList.add('banner-off');
+                }
             }
         }
 
@@ -2467,7 +2940,7 @@
             if (state.overlayVisible) {
                 showToast('📺 방송 자막이 화면에 송출됩니다.');
             } else {
-                showToast('🔇 자막 송출 OFF · 미리보기 화면에서 수정 후 ON을 누르세요.');
+                showToast('🔇 자막 송출이 중지(OFF)되었습니다.');
             }
         }
 
@@ -2556,6 +3029,17 @@
                 syncOverlayVisibility();
             }
             initCloudConnection();
+
+            requestAnimationFrame(() => {
+                document.body.classList.add('app-ready');
+            });
+
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => {
+                    fitTexts();
+                    syncOverlayVisibility();
+                });
+            }
         });
     </script>
 </body>
