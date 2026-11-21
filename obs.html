@@ -82,6 +82,19 @@
             pointer-events: none !important;
         }
 
+        body.overlay-only-mode #scoreboard-scale-box {
+            position: fixed !important;
+            top: 24px !important;
+            left: 24px !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+        }
+
+        body.overlay-only-mode #player-banner-wrapper,
+        body.overlay-only-mode #event-banner-wrapper {
+            z-index: 9998 !important;
+        }
+
         .font-score {
             font-family: 'Roboto', 'Pretendard', sans-serif;
             font-variant-numeric: tabular-nums;
@@ -1363,6 +1376,7 @@
             injectScript.textContent = [
                 `window.__FORCE_OVERLAY_ONLY__ = true;`,
                 `window.__INITIAL_OVERLAY_ROOM__ = ${JSON.stringify(state.roomCode || 'jokgu-live')};`,
+                `window.__INITIAL_OVERLAY_PAYLOAD__ = ${JSON.stringify({ ...buildLiveSyncPayload(), overlayVisible: true })};`,
                 embeddedConfig ? `window.__firebase_config = ${JSON.stringify(embeddedConfig)};` : '',
                 `window.__app_id = ${JSON.stringify(embeddedAppId)};`
             ].filter(Boolean).join('\n');
@@ -1383,7 +1397,7 @@
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
-            showToast(`💾 순수 오버레이 파일(jokgu_overlay.html · 방코드: ${state.roomCode})이 다운로드되었습니다.`);
+            showToast(`💾 오버레이 파일(jokgu_overlay.html) 다운로드 완료! (실시간 원격 제어는 '🔗 URL'을 OBS에 입력하세요)`);
         }
 
         function syncInputsWithState() {
@@ -3012,6 +3026,10 @@
             }
             if (IS_OVERLAY_ONLY) {
                 document.body.classList.add('overlay-only-mode', 'page-obs-transparent');
+                if (window.__INITIAL_OVERLAY_PAYLOAD__) {
+                    applyIncomingLivePayload(window.__INITIAL_OVERLAY_PAYLOAD__);
+                    lastAppliedTimestamp = 0;
+                }
                 try {
                     const cachedRaw = localStorage.getItem(`${STORAGE_KEY_LIVE_PAYLOAD}_${state.roomCode}`);
                     if (cachedRaw) applyIncomingLivePayload(JSON.parse(cachedRaw));

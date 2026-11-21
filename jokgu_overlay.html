@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" style="--left-col-w: 398px;" class="is-overlay-only"><head><script>window.__FORCE_OVERLAY_ONLY__ = true;
 window.__INITIAL_OVERLAY_ROOM__ = "jokgu-live";
+window.__INITIAL_OVERLAY_PAYLOAD__ = {"senderId":"inst-e8lv5qa9","updatedAt":1795259076665,"roomCode":"jokgu-live","tournament":"제13회 안양시의회 의장기 족구대회","date":"2026. 11. 7","venue":"장소 : 안양 새물공원 15점 3세트 (듀스없음)","sets":[{"top":0,"bottom":0}],"activeSet":0,"serveTeam":"top","overlayVisible":true,"topTeam":{"name":"안양 밤꽃","direction":"up","color":"#C93725"},"bottomTeam":{"name":"F2A-효준","direction":"down","color":"#3851B5"},"loadedTopTeamId":"team-anyang-bamkkot","loadedBottomTeamId":"team-f2a-hyojun","topRosterPlayers":[{"id":"p-101","name":"김민수","position":"공격수","note":"NO.7"},{"id":"p-102","name":"박지훈","position":"세터","note":"NO.10"},{"id":"p-103","name":"이성호","position":"우수비","note":"NO.3"},{"id":"p-104","name":"정현우","position":"좌수비","note":"NO.5"},{"id":"p-105","name":"최강산","position":"후보선수","note":"NO.11"}],"bottomRosterPlayers":[{"id":"p-201","name":"강태풍","position":"공격수","note":"NO.9"},{"id":"p-202","name":"윤도현","position":"세터","note":"NO.1"},{"id":"p-203","name":"송준영","position":"우수비","note":"NO.4"},{"id":"p-204","name":"한승민","position":"좌수비","note":"NO.8"}],"playerBanner":{"visible":false,"fadingOut":false,"mode":"single","slot":"top","sequenceStep":0,"teamName":"안양 밤꽃","playerName":"김민수","position":"공격수","note":"NO.7","playerId":"","teamId":"team-anyang-bamkkot","animKey":0},"eventBanner":{"visible":false,"fadingOut":false,"eventId":"","animKey":0}};
 window.__app_id = "jokgu-scoreboard-app";</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -81,6 +82,19 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             overflow: visible !important;
             background: transparent !important;
             pointer-events: none !important;
+        }
+
+        body.overlay-only-mode #scoreboard-scale-box {
+            position: fixed !important;
+            top: 24px !important;
+            left: 24px !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+        }
+
+        body.overlay-only-mode #player-banner-wrapper,
+        body.overlay-only-mode #event-banner-wrapper {
+            z-index: 9998 !important;
         }
 
         .font-score {
@@ -1786,6 +1800,7 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             injectScript.textContent = [
                 `window.__FORCE_OVERLAY_ONLY__ = true;`,
                 `window.__INITIAL_OVERLAY_ROOM__ = ${JSON.stringify(state.roomCode || 'jokgu-live')};`,
+                `window.__INITIAL_OVERLAY_PAYLOAD__ = ${JSON.stringify({ ...buildLiveSyncPayload(), overlayVisible: true })};`,
                 embeddedConfig ? `window.__firebase_config = ${JSON.stringify(embeddedConfig)};` : '',
                 `window.__app_id = ${JSON.stringify(embeddedAppId)};`
             ].filter(Boolean).join('\n');
@@ -1806,7 +1821,7 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
-            showToast(`💾 순수 오버레이 파일(jokgu_overlay.html · 방코드: ${state.roomCode})이 다운로드되었습니다.`);
+            showToast(`💾 오버레이 파일(jokgu_overlay.html) 다운로드 완료! (실시간 원격 제어는 '🔗 URL'을 OBS에 입력하세요)`);
         }
 
         function syncInputsWithState() {
@@ -3435,6 +3450,10 @@ window.__app_id = "jokgu-scoreboard-app";</script>
             }
             if (IS_OVERLAY_ONLY) {
                 document.body.classList.add('overlay-only-mode', 'page-obs-transparent');
+                if (window.__INITIAL_OVERLAY_PAYLOAD__) {
+                    applyIncomingLivePayload(window.__INITIAL_OVERLAY_PAYLOAD__);
+                    lastAppliedTimestamp = 0;
+                }
                 try {
                     const cachedRaw = localStorage.getItem(`${STORAGE_KEY_LIVE_PAYLOAD}_${state.roomCode}`);
                     if (cachedRaw) applyIncomingLivePayload(JSON.parse(cachedRaw));
