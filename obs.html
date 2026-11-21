@@ -6,6 +6,8 @@
     <title>유튜브 방송용 족구 스코어보드 (컨트롤러 &amp; 실시간 연동 OBS 오버레이)</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 기기 간 실시간 카메라 앱 연동을 위한 WebRTC P2P(PeerJS) 로드 -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <!-- 방송용 고가독성 한글/영문 폰트 (Pretendard, Noto Sans KR, Roboto) -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -900,6 +902,114 @@
 
         const liveChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('jokgu_scoreboard_sync') : null;
 
+        // 기기 간(스마트폰 카메라 앱 <-> 컨트롤러) 무설정 실시간 WebRTC P2P 동기화 매니저
+        const p2pSync = {
+            peer: null,
+            connections: new Map(),
+            hostConn: null,
+            reconnectTimer: null,
+            getHostPeerId(room) {
+                const safe = (room || 'jokgu-live').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'jokgu-live';
+                return `jokgu-sb-host-${safe}`;
+            },
+            init() {
+                if (typeof Peer === 'undefined') return;
+                this.destroy();
+                if (IS_OVERLAY_ONLY) {
+                    this.connectAsOverlay();
+                } else {
+                    this.startAsControllerHost();
+                }
+            },
+            destroy() {
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
+                if (this.hostConn) {
+                    try { this.hostConn.close(); } catch (e) {}
+                    this.hostConn = null;
+                }
+                this.connections.forEach(conn => {
+                    try { conn.close(); } catch (e) {}
+                });
+                this.connections.clear();
+                if (this.peer) {
+                    try { this.peer.destroy(); } catch (e) {}
+                    this.peer = null;
+                }
+            },
+            startAsControllerHost() {
+                const hostId = this.getHostPeerId(state.roomCode);
+                try {
+                    this.peer = new Peer(hostId, { debug: 0 });
+                    this.peer.on('open', () => {
+                        const dotEl = document.getElementById('sync-status-dot');
+                        if (dotEl) {
+                            dotEl.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                            dotEl.title = `실시간 원격 송출 대기 중 (방코드: ${state.roomCode})`;
+                        }
+                    });
+                    this.peer.on('connection', (conn) => {
+                        this.connections.set(conn.peer, conn);
+                        conn.on('open', () => {
+                            try { conn.send(buildLiveSyncPayload()); } catch (e) {}
+                        });
+                        conn.on('data', (msg) => {
+                            if (msg && msg.type === 'REQUEST_SYNC') {
+                                try { conn.send(buildLiveSyncPayload()); } catch (e) {}
+                            }
+                        });
+                        conn.on('close', () => this.connections.delete(conn.peer));
+                        conn.on('error', () => this.connections.delete(conn.peer));
+                    });
+                    this.peer.on('error', (err) => {
+                        if (err && err.type === 'unavailable-id') {
+                            this.peer = new Peer(undefined, { debug: 0 });
+                        }
+                    });
+                } catch (e) {}
+            },
+            connectAsOverlay() {
+                const hostId = this.getHostPeerId(state.roomCode);
+                try {
+                    this.peer = new Peer(undefined, { debug: 0 });
+                    this.peer.on('open', () => {
+                        const conn = this.peer.connect(hostId, { reliable: true });
+                        this.hostConn = conn;
+                        conn.on('open', () => {
+                            try { conn.send({ type: 'REQUEST_SYNC' }); } catch (e) {}
+                        });
+                        conn.on('data', (payload) => {
+                            if (payload && payload.roomCode) {
+                                applyIncomingLivePayload(payload);
+                            }
+                        });
+                        conn.on('close', () => this.scheduleOverlayReconnect());
+                        conn.on('error', () => this.scheduleOverlayReconnect());
+                    });
+                    this.peer.on('error', () => this.scheduleOverlayReconnect());
+                } catch (e) {
+                    this.scheduleOverlayReconnect();
+                }
+            },
+            scheduleOverlayReconnect() {
+                if (!IS_OVERLAY_ONLY || this.reconnectTimer) return;
+                this.reconnectTimer = setTimeout(() => {
+                    this.reconnectTimer = null;
+                    this.init();
+                }, 3000);
+            },
+            broadcast(payload) {
+                if (IS_OVERLAY_ONLY || this.connections.size === 0) return;
+                this.connections.forEach((conn) => {
+                    if (conn && conn.open) {
+                        try { conn.send(payload); } catch (e) {}
+                    }
+                });
+            }
+        };
+
         // 맞춤법 및 띄어쓰기가 교정된 7종 모션 그래픽 이벤트 오버레이 정의
         const EVENT_OVERLAY_ITEMS = [
             {
@@ -1110,7 +1220,9 @@
             activeSet: typeof savedBoard?.activeSet === 'number' ? savedBoard.activeSet : 0,
             serveTeam: savedBoard?.serveTeam === 'bottom' ? 'bottom' : 'top',
             scale: typeof savedBoard?.scale === 'number' ? savedBoard.scale : 50,
-            overlayVisible: typeof savedBoard?.overlayVisible === 'boolean' ? savedBoard.overlayVisible : false,
+            overlayVisible: IS_OVERLAY_ONLY
+                ? (urlParams.get('show') !== '0')
+                : (typeof savedBoard?.overlayVisible === 'boolean' ? savedBoard.overlayVisible : false),
             isPreviewCollapsed: false,
             isTransparent: false,
             isPanelHidden: false,
@@ -1299,6 +1411,8 @@
             if (window.__jokguCloudSync && window.__jokguCloudSync.enabled) {
                 window.__jokguCloudSync.pushRoomState(state.roomCode, payload);
             }
+
+            p2pSync.broadcast(payload);
         }
 
         function persistLocalState() {
@@ -1335,6 +1449,7 @@
             if (window.__jokguCloudSync && window.__jokguCloudSync.enabled) {
                 window.__jokguCloudSync.subscribeRoom(state.roomCode, applyIncomingLivePayload);
             }
+            p2pSync.init();
             persistLocalState();
             showToast(`📡 연동 방 코드가 '${cleaned}'(으)로 설정되었습니다.`);
         }
@@ -1343,6 +1458,7 @@
             const url = new URL(window.location.href);
             url.searchParams.set('mode', 'overlay');
             url.searchParams.set('room', state.roomCode || 'jokgu-live');
+            url.searchParams.set('show', state.overlayVisible ? '1' : '0');
             return url.toString();
         }
 
@@ -2785,19 +2901,26 @@
             const scaleRatio = IS_OVERLAY_ONLY ? 1 : (state.scale / 100);
             const isLiveCleanOutput = (IS_OVERLAY_ONLY || state.isTransparent || state.isPanelHidden);
 
+            fitTexts();
+
+            const naturalCardWidth = Math.max(348, cardEl ? cardEl.offsetWidth : 348);
+            const overlayCardScale = IS_OVERLAY_ONLY
+                ? Math.min(1, Math.max(0.42, (window.innerWidth - 32) / naturalCardWidth))
+                : scaleRatio;
+
             if (scaleBoxEl && cardEl) {
                 const baseCardHeight = 148;
-                const scaledCardHeight = Math.round(baseCardHeight * scaleRatio);
+                const scaledCardHeight = Math.round(baseCardHeight * overlayCardScale);
                 cardEl.style.marginBottom = IS_OVERLAY_ONLY ? '0px' : `${scaledCardHeight - baseCardHeight}px`;
             }
 
             cardEl.classList.remove('overlay-on', 'overlay-off-preview', 'overlay-off-live');
-            cardEl.style.transform = IS_OVERLAY_ONLY ? 'none' : `scale(${scaleRatio})`;
+            cardEl.style.transform = `scale(${overlayCardScale})`;
             if (IS_OVERLAY_ONLY) {
                 cardEl.style.transformOrigin = 'top left';
                 scaleBoxEl.style.position = 'fixed';
-                scaleBoxEl.style.left = '24px';
-                scaleBoxEl.style.top = '24px';
+                scaleBoxEl.style.left = '16px';
+                scaleBoxEl.style.top = '16px';
             }
 
             if (state.overlayVisible) {
@@ -2827,8 +2950,6 @@
                     topText.textContent = '자막 송출 OFF';
                 }
             }
-
-            fitTexts();
 
             const pb = state.playerBanner;
             const isFading = Boolean(pb.fadingOut);
@@ -3046,6 +3167,7 @@
             } else {
                 syncOverlayVisibility();
             }
+            p2pSync.init();
             initCloudConnection();
 
             requestAnimationFrame(() => {
